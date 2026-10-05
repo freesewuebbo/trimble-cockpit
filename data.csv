@@ -1,0 +1,3 @@
+object_id;machine_name;status;utilization_pct;quality_pct;capacity_h;quality_issues;updated_at;history
+DEFAULT;Testmaschine BAZ 01;Produktion;82;97.1;116;4;2026-10-05 06:00;68|71|74|79|76|80|82
+EXAMPLE_OBJECT_ID_2;Testmaschine Laser 02;Wartung;64;98.4;72;1;2026-10-05 06:00;71|69|66|62|65|64|64
