@@ -1,0 +1,7 @@
+{
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-v4-layout.html?v=gate1-20261005-1",
+  "title": "LEANNOVA Factory Planner V4 - Gate 1",
+  "description": "Technischer Gate-Test fuer Modellplatzierung: Maschine als separates Modell verschieben, drehen, Zielpunkt setzen und Roundtrip-Latenz messen.",
+  "extensionType": ["3dviewer"],
+  "type": "panel"
+}
