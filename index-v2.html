@@ -41,6 +41,15 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 .modalHead{display:flex;justify-content:space-between;gap:10px;padding:12px 13px;border-bottom:1px solid var(--line)}.modalHead h2{font-size:16px;margin:0}.close{border:0;background:transparent;font-size:21px;cursor:pointer}.modalBody{padding:12px}.bigPhoto{height:210px;overflow:hidden;position:relative;background:#e8ecee}.bigPhoto img{width:120%;height:120%;object-fit:cover;animation:kenburns 8s ease-in-out infinite alternate}
 .detailTitle{font-size:12px;font-weight:800;margin:11px 0 5px}.detailText{font-size:10px;color:#44525A;line-height:1.5}.tag{display:inline-block;padding:3px 5px;font-size:8px;font-weight:800;margin-right:4px}.tag.bad{background:#FCE8E7;color:#B42318}.tag.warn{background:#FFF4D6;color:#8A6500}.tag.ok{background:#EAF7ED;color:#237A37}
 .obj{border:1px solid var(--line);background:#FAFBFB;padding:8px;margin-top:10px}.objrow{display:grid;grid-template-columns:64px 1fr;gap:6px;padding:2px 0;font-size:8px}.objrow b{color:var(--muted)}.mono{font-family:Consolas,monospace;word-break:break-all}
+
+.colorToolbar{border:1px solid var(--line);background:#FBFCFD;padding:10px;margin-bottom:10px}
+.colorTitle{font-size:9px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--blue);margin-bottom:7px}
+.colorModes{display:flex;gap:5px;flex-wrap:wrap}
+.colorModeBtn{border:1px solid var(--line);background:#fff;color:var(--text);font:inherit;font-size:9px;font-weight:700;padding:6px 8px;cursor:pointer}
+.colorModeBtn.active{border-color:var(--blue);background:var(--soft);color:var(--blue)}
+.colorLegend{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px;font-size:8px;color:var(--muted)}
+.colorLegend span{display:inline-flex;align-items:center;gap:4px}.legendDot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.colorHint{font-size:8px;color:var(--muted);margin-top:6px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -53,6 +62,24 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 </header>
 <main>
 <div id="notice" class="notice">Verbinde mit Trimble Connect …</div>
+<div class="colorToolbar">
+  <div class="colorTitle">Farbmodus im 3D-Modell</div>
+  <div class="colorModes" id="colorModes">
+    <button class="colorModeBtn active" data-color-mode="none">Keine</button>
+    <button class="colorModeBtn" data-color-mode="temperature">Temperatur</button>
+    <button class="colorModeBtn" data-color-mode="status">Betriebsstatus</button>
+    <button class="colorModeBtn" data-color-mode="quality">Qualität</button>
+    <button class="colorModeBtn" data-color-mode="utilization">Auslastung</button>
+  </div>
+  <div class="colorLegend">
+    <span><i class="legendDot" style="background:#32A852"></i>OK</span>
+    <span><i class="legendDot" style="background:#F2B705"></i>Warnung</span>
+    <span><i class="legendDot" style="background:#F28C28"></i>Wartung</span>
+    <span><i class="legendDot" style="background:#D83A34"></i>Kritisch</span>
+  </div>
+  <div id="colorHint" class="colorHint">Wähle einen Modus – alle registrierten Maschinen im geladenen Modell werden gleichzeitig eingefärbt.</div>
+</div>
+
 <div id="machineOnly" class="machineOnly disabled">
  <div class="machineTop">
    <div class="photoHero" onclick="openMedia('machine')"><img id="heroImg"></div>
@@ -132,7 +159,9 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 
 <script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
 <script>
-let API=null,rows=[],current=null,currentObjectId="",tempHistory=[],liveTimer=null;
+let API=null,rows=[],current=null,currentObjectId="",currentModelId="",tempHistory=[],liveTimer=null;
+let colorMode="none",machineRuntimeMap=new Map(),colorApplyBusy=false;
+const VIEW_COLORS={green:{r:50,g:168,b:82,a:255},yellow:{r:242,g:183,b:5,a:255},orange:{r:242,g:140,b:40,a:255},red:{r:216,g:58,b:52,a:255}};
 const el=id=>document.getElementById(id);
 const urls={machine:"https://de.dmgmori.com/produkte/maschinen/fraesen/vertikal-fraesen/cmx-v",service:"https://mydmgmori.com/",docs:"https://de.dmgmori.com/produkte/maschinen/fraesen/vertikal-fraesen/cmx-v"};
 let imgData={};
@@ -151,6 +180,63 @@ async function loadAssets(){
 function parseCsv(t){const l=t.replace(/\r/g,"").split("\n").filter(Boolean),h=l.shift().split(";");return l.map(x=>{const v=x.split(";"),o={};h.forEach((k,i)=>o[k]=(v[i]||"").trim());return o})}
 async function loadCsv(){const r=await fetch("data.csv?ts="+Date.now(),{cache:"no-store"});rows=parseCsv(await r.text())}
 const machineById=id=>rows.find(r=>r.object_id===id)||null;
+
+
+function liveTempForMachine(m){
+ const s=scenario(m),base=Number(m.temp_base_c||41)+s.tempAdd;
+ const phase=((Date.now()/5000)+(String(m.machine_id||"").length*1.7))%18/18*Math.PI*2;
+ return base+2.8*Math.sin(phase)+.8*Math.sin(phase*2+.7);
+}
+function colorForMachine(m,mode){
+ const s=scenario(m),util=Number(m.utilization_pct||0),qual=Number(m.quality_pct||0),issues=Number(m.quality_issues||0)+s.qmAdd,temp=liveTempForMachine(m);
+ if(mode==="temperature") return temp>55?VIEW_COLORS.red:temp>=45?VIEW_COLORS.yellow:VIEW_COLORS.green;
+ if(mode==="status"){
+   if(s.kind==="maintenance") return VIEW_COLORS.orange;
+   if(s.kind==="quality"||s.kind==="capacity"||s.kind==="load") return VIEW_COLORS.yellow;
+   if(String(s.status).toLowerCase().includes("störung")) return VIEW_COLORS.red;
+   return VIEW_COLORS.green;
+ }
+ if(mode==="quality") return (issues>=4||qual<96)?VIEW_COLORS.red:(issues>=1||qual<98)?VIEW_COLORS.yellow:VIEW_COLORS.green;
+ if(mode==="utilization") return util>=90?VIEW_COLORS.red:util>=75?VIEW_COLORS.yellow:VIEW_COLORS.green;
+ return null;
+}
+async function discoverMachineRuntimeMap(force=false){
+ if(!API)return;
+ if(machineRuntimeMap.size&&!force)return;
+ machineRuntimeMap=new Map();
+ const ids=rows.map(r=>r.object_id).filter(Boolean);
+ const modelIds=[];
+ if(currentModelId)modelIds.push(currentModelId);
+ try{
+   const models=await API.viewer.getModels();
+   for(const m of (models||[])){const id=m?.id||m?.versionId||m?.modelId;if(id)modelIds.push(id)}
+ }catch(e){}
+ for(const modelId of [...new Set(modelIds)]){
+   try{
+     const runtimeIds=await API.viewer.convertToObjectRuntimeIds(modelId,ids);
+     runtimeIds.forEach((rid,i)=>{if(rid!==undefined&&rid!==null)machineRuntimeMap.set(ids[i],{modelId,runtimeId:rid})});
+   }catch(e){}
+ }
+}
+async function applyColorMode(force=false){
+ if(!API||colorApplyBusy)return;
+ colorApplyBusy=true;
+ try{
+   await API.viewer.setObjectState(undefined,{color:"reset"});
+   if(colorMode==="none"){el("colorHint").textContent="Keine Einfärbung aktiv – Originalfarben des Modells.";return}
+   await discoverMachineRuntimeMap(force);
+   let count=0;
+   for(const m of rows){
+     const map=machineRuntimeMap.get(m.object_id);if(!map)continue;
+     const color=colorForMachine(m,colorMode);if(!color)continue;
+     await API.viewer.setObjectState({modelObjectIds:[{modelId:map.modelId,objectRuntimeIds:[map.runtimeId]}]},{color});
+     count++;
+   }
+   const labels={temperature:"Temperaturstatus",status:"Betriebsstatus",quality:"Qualitätsstatus",utilization:"Auslastung"};
+   el("colorHint").textContent=(labels[colorMode]||colorMode)+" aktiv · "+count+" Maschine(n) eingefärbt · Live-Aktualisierung alle 5 s.";
+ }catch(e){el("colorHint").textContent="Farbmodus konnte nicht angewendet werden: "+e.message}
+ finally{colorApplyBusy=false}
+}
 
 function scenario(m){
  const id=m.machine_id||"";
@@ -184,7 +270,7 @@ function startLive(m,s){if(liveTimer)clearInterval(liveTimer);tempHistory=[];con
  el("tempNeedle").style.left=Math.max(0,Math.min(100,(temp-20)/50*100))+"%";el("loadBar").style.width=load+"%";el("loadBarBox").className="bar "+(load>90?"bad":load>80?"warn":"");
  tempHistory.push(temp);if(tempHistory.length>19)tempHistory.shift();drawLine("tempChart",tempHistory,20,70,"#0478A0",55);
  el("headTime").textContent=new Date().toLocaleTimeString("de-DE");
- updateDynamicAlert(temp,load,s);
+ updateDynamicAlert(temp,load,s);if(colorMode!=="none")applyColorMode();
  }; update();liveTimer=setInterval(update,5000)
 }
 
@@ -216,7 +302,7 @@ async function handleSelection(args){
  const f=sel[0],rid=(f.objectRuntimeIds||[])[0];if(!rid)return;let oid="",name="Ausgewähltes Objekt";
  try{const ids=await API.viewer.convertToObjectIds(f.modelId,[rid]);oid=ids?.[0]||""}catch(e){}
  try{const p=await API.viewer.getObjectProperties(f.modelId,[rid]);name=p?.[0]?.product?.name||name}catch(e){}
- currentObjectId=oid;el("modelId").textContent=f.modelId||"–";el("objectId").textContent=oid||"–";el("objectName").textContent=name;
+ currentObjectId=oid;if(currentModelId!==f.modelId){currentModelId=f.modelId||"";machineRuntimeMap=new Map()}el("modelId").textContent=f.modelId||"–";el("objectId").textContent=oid||"–";el("objectName").textContent=name;
  const m=machineById(oid);if(m)renderStatic(m);else disableMachine('"'+name+'" ist kein registriertes Maschinenobjekt. Für dieses Bauteil werden bewusst keine Maschinen-KPIs angezeigt.');
 }
 
@@ -224,6 +310,11 @@ async function init(){
  try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a)},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()})}
  catch(e){el("notice").textContent="Startfehler: "+e.message}
 }
+
+document.querySelectorAll("[data-color-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
+ document.querySelectorAll("[data-color-mode]").forEach(b=>b.classList.remove("active"));
+ btn.classList.add("active");colorMode=btn.dataset.colorMode;await applyColorMode(true);
+}));
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});el("modal").addEventListener("click",e=>{if(e.target===el("modal"))closeModal()});init();
 </script>
 </body></html>
