@@ -71,12 +71,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
     <button class="colorModeBtn" data-color-mode="quality">Qualität</button>
     <button class="colorModeBtn" data-color-mode="utilization">Auslastung</button>
   </div>
-  <div class="colorLegend">
-    <span><i class="legendDot" style="background:#32A852"></i>OK</span>
-    <span><i class="legendDot" style="background:#F2B705"></i>Warnung</span>
-    <span><i class="legendDot" style="background:#F28C28"></i>Wartung</span>
-    <span><i class="legendDot" style="background:#D83A34"></i>Kritisch</span>
-  </div>
+  <div id="colorLegend" class="colorLegend"></div>
   <div id="colorHint" class="colorHint">Wähle einen Modus – alle registrierten Maschinen im geladenen Modell werden gleichzeitig eingefärbt.</div>
 </div>
 
@@ -103,7 +98,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
  </div>
 
  <div class="livegrid">
-   <div class="livecard"><span class="livebadge">LIVE DEMO</span><div class="klabel">Maschinentemperatur</div><div><span class="kval" id="temp">–</span><span class="unit">°C</span></div><div class="warnscale"><i id="tempNeedle" class="needle"></i></div><div class="small" style="margin-top:5px">Grün &lt;45 · Gelb 45–55 · Rot &gt;55 °C</div></div>
+   <div class="livecard"><span class="livebadge">LIVE DEMO</span><div class="klabel">Maschinentemperatur</div><div><span class="kval" id="temp">–</span><span class="unit">°C</span></div><div class="warnscale"><i id="tempNeedle" class="needle"></i></div><div class="small" style="margin-top:5px">5 Stufen · Live-Refresh 3 s · Werte und Modellfarbe werden gemeinsam aktualisiert</div></div>
    <div class="livecard"><span class="livebadge">LIVE DEMO</span><div class="klabel">Spindellast</div><div><span class="kval" id="load">–</span><span class="unit">%</span></div><div class="bar" id="loadBarBox"><i id="loadBar"></i></div><div class="small" style="margin-top:5px">Vibration <b id="vibration">–</b> mm/s · Leistung <b id="power">–</b> kW</div></div>
  </div>
 
@@ -118,7 +113,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
  <div id="overview" class="panel active">
    <div class="charts">
     <div class="chart"><div class="charthead"><span>Auslastung · letzte 7 Tage</span><span class="small" id="updatedAt">–</span></div><svg id="utilChart" class="spark" viewBox="0 0 320 92" preserveAspectRatio="none"></svg></div>
-    <div class="chart"><div class="charthead"><span>Temperatur · Live-Verlauf 90 s</span><span class="small">Grenzwert 55 °C</span></div><svg id="tempChart" class="spark" viewBox="0 0 320 92" preserveAspectRatio="none"></svg></div>
+    <div class="chart"><div class="charthead"><span>Temperatur · Live-Verlauf ca. 60 s</span><span class="small">Grenzwert 55 °C</span></div><svg id="tempChart" class="spark" viewBox="0 0 320 92" preserveAspectRatio="none"></svg></div>
    </div>
    <div class="sectionTitle">Aktuelle Meldungen</div><div id="alertList" class="alertList"></div>
  </div>
@@ -159,9 +154,17 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 
 <script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
 <script>
-let API=null,rows=[],current=null,currentObjectId="",currentModelId="",tempHistory=[],liveTimer=null;
+let API=null,rows=[],current=null,currentObjectId="",currentModelId="",tempHistory=[],liveTimer=null,colorTimer=null;
+const DEMO_INTERVAL_MS=3000;
 let colorMode="none",machineRuntimeMap=new Map(),colorApplyBusy=false;
-const VIEW_COLORS={green:{r:50,g:168,b:82,a:255},yellow:{r:242,g:183,b:5,a:255},orange:{r:242,g:140,b:40,a:255},red:{r:216,g:58,b:52,a:255}};
+const VIEW_COLORS={
+  darkGreen:{r:46,g:125,b:50,a:255},
+  lightGreen:{r:124,g:179,b:66,a:255},
+  yellow:{r:253,g:216,b:53,a:255},
+  orange:{r:251,g:140,b:0,a:255},
+  red:{r:229,g:57,b:53,a:255},
+  gray:{r:201,g:206,b:210,a:255}
+};
 const el=id=>document.getElementById(id);
 const urls={machine:"https://de.dmgmori.com/produkte/maschinen/fraesen/vertikal-fraesen/cmx-v",service:"https://mydmgmori.com/",docs:"https://de.dmgmori.com/produkte/maschinen/fraesen/vertikal-fraesen/cmx-v"};
 let imgData={};
@@ -182,25 +185,100 @@ async function loadCsv(){const r=await fetch("data.csv?ts="+Date.now(),{cache:"n
 const machineById=id=>rows.find(r=>r.object_id===id)||null;
 
 
-function liveTempForMachine(m){
- const s=scenario(m),base=Number(m.temp_base_c||41)+s.tempAdd;
- const phase=((Date.now()/5000)+(String(m.machine_id||"").length*1.7))%18/18*Math.PI*2;
- return base+2.8*Math.sin(phase)+.8*Math.sin(phase*2+.7);
+
+function statusSequenceForMachine(m){
+ const id=m.machine_id||"",step=Math.floor(Date.now()/DEMO_INTERVAL_MS)%8;
+ let seq;
+ if(id.includes("BAZ-02")) seq=["Wartung","Wartung","Wartung","Produktion","Produktion","Wartung","Wartung","Wartung"];
+ else if(id.includes("LAS")) seq=["Produktion","Rüsten","Rüsten","Wartung","Wartung","Produktion","Produktion","Produktion"];
+ else if(id.includes("DRH")) seq=["Produktion","Warnung","Störung","Störung","Warnung","Produktion","Produktion","Produktion"];
+ else if(id.includes("MES")) seq=["Bereit","Prüfbetrieb","Prüfbetrieb","Bereit","Bereit","Prüfbetrieb","Bereit","Bereit"];
+ else if(id.includes("MON")) seq=["Produktion","Kapazitätswarnung","Kapazitätswarnung","Produktion","Produktion","Produktion","Kapazitätswarnung","Produktion"];
+ else seq=["Produktion","Produktion","Produktion","Warnung","Warnung","Produktion","Produktion","Produktion"];
+ return seq[step];
+}
+function liveMetricsForMachine(m){
+ const s=scenario(m);
+ const seed=(String(m.machine_id||m.object_id||"").split("").reduce((a,c)=>a+c.charCodeAt(0),0)%19)/19*Math.PI*2;
+ const t=Date.now()/DEMO_INTERVAL_MS;
+ const ph=((t%20)/20)*Math.PI*2+seed;
+ const baseTemp=Number(m.temp_base_c||41)+s.tempAdd;
+ const temp=baseTemp+3.6*Math.sin(ph)+1.1*Math.sin(ph*2+.7);
+ const util=Math.max(20,Math.min(99,Number(m.utilization_pct||70)+8.5*Math.sin(ph+.4)+3*Math.sin(ph*2.1)));
+ const quality=Math.max(92,Math.min(99.9,Number(m.quality_pct||98)-.7+.85*Math.sin(ph+.9)));
+ const issueBase=Number(m.quality_issues||0)+s.qmAdd;
+ const issues=Math.max(0,issueBase+(Math.sin(ph*1.3)>.72?1:0));
+ return {temp,util,quality,issues,status:statusSequenceForMachine(m)};
 }
 function colorForMachine(m,mode){
- const s=scenario(m),util=Number(m.utilization_pct||0),qual=Number(m.quality_pct||0),issues=Number(m.quality_issues||0)+s.qmAdd,temp=liveTempForMachine(m);
- if(mode==="temperature") return temp>55?VIEW_COLORS.red:temp>=45?VIEW_COLORS.yellow:VIEW_COLORS.green;
- if(mode==="status"){
-   if(s.kind==="maintenance") return VIEW_COLORS.orange;
-   if(s.kind==="quality"||s.kind==="capacity"||s.kind==="load") return VIEW_COLORS.yellow;
-   if(String(s.status).toLowerCase().includes("störung")) return VIEW_COLORS.red;
-   return VIEW_COLORS.green;
+ const x=liveMetricsForMachine(m);
+ if(mode==="temperature"){
+   if(x.temp>=55)return VIEW_COLORS.red;
+   if(x.temp>=48)return VIEW_COLORS.orange;
+   if(x.temp>=42)return VIEW_COLORS.yellow;
+   if(x.temp>=35)return VIEW_COLORS.lightGreen;
+   return VIEW_COLORS.darkGreen;
  }
- if(mode==="quality") return (issues>=4||qual<96)?VIEW_COLORS.red:(issues>=1||qual<98)?VIEW_COLORS.yellow:VIEW_COLORS.green;
- if(mode==="utilization") return util>=90?VIEW_COLORS.red:util>=75?VIEW_COLORS.yellow:VIEW_COLORS.green;
+ if(mode==="status"){
+   const st=String(x.status||"").toLowerCase();
+   if(st.includes("störung")||st.includes("stillstand")||st.includes("kritisch"))return VIEW_COLORS.red;
+   if(st.includes("wartung"))return VIEW_COLORS.orange;
+   if(st.includes("warn")||st.includes("rüst")||st.includes("ruest")||st.includes("kapazität")||st.includes("kapazitaet")||st.includes("hohe last"))return VIEW_COLORS.yellow;
+   if(st.includes("bereit")||st.includes("prüf")||st.includes("pruef"))return VIEW_COLORS.lightGreen;
+   return VIEW_COLORS.darkGreen;
+ }
+ if(mode==="quality"){
+   if(x.issues>=4||x.quality<95)return VIEW_COLORS.red;
+   if(x.issues>=2||x.quality<97)return VIEW_COLORS.orange;
+   if(x.issues>=1||x.quality<98)return VIEW_COLORS.yellow;
+   if(x.quality<99)return VIEW_COLORS.lightGreen;
+   return VIEW_COLORS.darkGreen;
+ }
+ if(mode==="utilization"){
+   if(x.util>=95)return VIEW_COLORS.red;
+   if(x.util>=85)return VIEW_COLORS.orange;
+   if(x.util>=75)return VIEW_COLORS.yellow;
+   if(x.util>=55)return VIEW_COLORS.darkGreen;
+   return VIEW_COLORS.lightGreen;
+ }
  return null;
 }
-async function discoverMachineRuntimeMap(force=false){
+function updateColorLegend(mode){
+ const legends={
+   none:[["#C9CED2","Originalfarben","Keine Statusbewertung"]],
+   temperature:[
+     ["#2E7D32","< 35 °C","optimal / kühl"],
+     ["#7CB342","35–42 °C","normal"],
+     ["#FDD835","42–48 °C","erhöht"],
+     ["#FB8C00","48–55 °C","kritisch"],
+     ["#E53935","≥ 55 °C","Alarm"]
+   ],
+   status:[
+     ["#2E7D32","Produktion","stabil"],
+     ["#7CB342","Bereit / Prüfen","verfügbar"],
+     ["#FDD835","Rüsten / Warnung","beobachten"],
+     ["#FB8C00","Wartung","Instandhaltung"],
+     ["#E53935","Störung","Stillstand"]
+   ],
+   quality:[
+     ["#2E7D32","≥ 99 %","sehr gut"],
+     ["#7CB342","98–99 %","gut"],
+     ["#FDD835","97–98 % / 1 QM","auffällig"],
+     ["#FB8C00","95–97 % / 2–3 QM","kritisch"],
+     ["#E53935","< 95 % / ≥4 QM","Eskalation"]
+   ],
+   utilization:[
+     ["#7CB342","< 55 %","Reserve"],
+     ["#2E7D32","55–75 %","optimal"],
+     ["#FDD835","75–85 %","hoch"],
+     ["#FB8C00","85–95 %","sehr hoch"],
+     ["#E53935","≥ 95 %","Überlast"]
+   ]
+ };
+ el("colorLegend").innerHTML=(legends[mode]||legends.none).map(x=>'<span><i class="legendDot" style="background:'+x[0]+'"></i><b>'+x[1]+'</b> · '+x[2]+'</span>').join("");
+}
+
+async function discoverMachineRuntimeMapasync function discoverMachineRuntimeMap(force=false){
  if(!API)return;
  if(machineRuntimeMap.size&&!force)return;
  machineRuntimeMap=new Map();
@@ -218,13 +296,18 @@ async function discoverMachineRuntimeMap(force=false){
    }catch(e){}
  }
 }
-async function applyColorMode(force=false){
+
+async function applyColorMode(forceReset=false){
  if(!API||colorApplyBusy)return;
  colorApplyBusy=true;
  try{
-   await API.viewer.setObjectState(undefined,{color:"reset"});
-   if(colorMode==="none"){el("colorHint").textContent="Keine Einfärbung aktiv – Originalfarben des Modells.";return}
-   await discoverMachineRuntimeMap(force);
+   if(colorMode==="none"){
+     await API.viewer.setObjectState(undefined,{color:"reset"});
+     el("colorHint").textContent="Keine Einfärbung aktiv – Originalfarben des Modells.";
+     return;
+   }
+   if(forceReset)await API.viewer.setObjectState(undefined,{color:"reset"});
+   await discoverMachineRuntimeMap(forceReset);
    let count=0;
    for(const m of rows){
      const map=machineRuntimeMap.get(m.object_id);if(!map)continue;
@@ -233,12 +316,16 @@ async function applyColorMode(force=false){
      count++;
    }
    const labels={temperature:"Temperaturstatus",status:"Betriebsstatus",quality:"Qualitätsstatus",utilization:"Auslastung"};
-   el("colorHint").textContent=(labels[colorMode]||colorMode)+" aktiv · "+count+" Maschine(n) eingefärbt · Live-Aktualisierung alle 5 s.";
+   el("colorHint").textContent=(labels[colorMode]||colorMode)+" aktiv · "+count+" Maschine(n) eingefärbt · Live-Refresh alle 3 s.";
  }catch(e){el("colorHint").textContent="Farbmodus konnte nicht angewendet werden: "+e.message}
  finally{colorApplyBusy=false}
 }
+function startColorLoop(){
+ if(colorTimer)clearInterval(colorTimer);
+ colorTimer=setInterval(()=>{if(colorMode!=="none")applyColorMode(false)},DEMO_INTERVAL_MS);
+}
 
-function scenario(m){
+function scenario(m){function scenario(m){
  const id=m.machine_id||"";
  if(id.includes("BAZ-02"))return{status:"Wartung",tempAdd:14,loadAdd:-25,qmAdd:1,kind:"maintenance"};
  if(id.includes("LAS"))return{status:"Qualitätswarnung",tempAdd:7,loadAdd:12,qmAdd:2,kind:"quality"};
@@ -250,7 +337,7 @@ function scenario(m){
 
 function renderStatic(m){
  current=m; const s=scenario(m);
- el("machineOnly").classList.remove("disabled");el("notice").className="notice";el("notice").textContent="Maschinenobjekt erkannt · Live-Demo aktiv · Aktualisierung alle 5 Sekunden";
+ el("machineOnly").classList.remove("disabled");el("notice").className="notice";el("notice").textContent="Maschinenobjekt erkannt · Live-Demo aktiv · Aktualisierung alle 3 Sekunden";
  el("machineName").textContent=m.machine_name;el("machineType").textContent=m.type||"Bearbeitungszentrum";el("machineArea").textContent=m.area||"Produktion";el("machineId").textContent=m.machine_id||"–";
  el("statusText").textContent=s.status;el("statusDot").style.background=s.kind==="maintenance"?"var(--bad)":(s.kind==="quality"||s.kind==="capacity"?"var(--warn)":"var(--ok)");
  el("util").textContent=m.utilization_pct;el("quality").textContent=m.quality_pct;el("capacity").textContent=m.capacity_h;el("qmCount").textContent=(Number(m.quality_issues||0)+s.qmAdd);
@@ -264,17 +351,41 @@ function disableMachine(msg){current=null;if(liveTimer)clearInterval(liveTimer);
 function drawUtil(hist){const vals=(hist||"").split("|").map(Number).filter(Number.isFinite);drawLine("utilChart",vals,0,100,"#039ED2",null)}
 function drawLine(id,vals,min,max,color,threshold){const svg=el(id),w=320,h=92,p=10;if(!vals.length){svg.innerHTML="";return}const pts=vals.map((v,i)=>[p+i*(w-2*p)/Math.max(1,vals.length-1),h-p-(v-min)/(max-min)*(h-2*p)]);let bg="";if(threshold!==null){const y=h-p-(threshold-min)/(max-min)*(h-2*p);bg='<rect x="10" y="10" width="300" height="'+(y-10)+'" fill="#FDECEC"/><rect x="10" y="'+y+'" width="300" height="'+(h-p-y)+'" fill="#EEF8F0"/><line x1="10" y1="'+y+'" x2="310" y2="'+y+'" stroke="#D83A34" stroke-dasharray="4 4"/>'}svg.innerHTML=bg+'<polyline fill="none" stroke="'+color+'" stroke-width="3" points="'+pts.map(q=>q.join(",")).join(" ")+'"/>'+pts.map(q=>'<circle cx="'+q[0]+'" cy="'+q[1]+'" r="2.3" fill="'+color+'"/>').join("")}
 
-function startLive(m,s){if(liveTimer)clearInterval(liveTimer);tempHistory=[];const base=Number(m.temp_base_c||41)+s.tempAdd;let tick=0;
- const update=()=>{tick++;const ph=(tick%18)/18*Math.PI*2;const temp=base+2.8*Math.sin(ph)+.8*Math.sin(ph*2+.7);const load=Math.max(8,Math.min(99,Number(m.utilization_pct||70)+s.loadAdd+8*Math.sin(ph+.5)));const vib=Math.max(.4,1.7+(load/100)*2.5+.3*Math.sin(ph*1.7));const pow=Math.max(2,5+(load/100)*16+1.1*Math.sin(ph*1.2));
- el("temp").textContent=temp.toFixed(1);el("load").textContent=Math.round(load);el("vibration").textContent=vib.toFixed(1);el("power").textContent=pow.toFixed(1);
- el("tempNeedle").style.left=Math.max(0,Math.min(100,(temp-20)/50*100))+"%";el("loadBar").style.width=load+"%";el("loadBarBox").className="bar "+(load>90?"bad":load>80?"warn":"");
- tempHistory.push(temp);if(tempHistory.length>19)tempHistory.shift();drawLine("tempChart",tempHistory,20,70,"#0478A0",55);
- el("headTime").textContent=new Date().toLocaleTimeString("de-DE");
- updateDynamicAlert(temp,load,s);if(colorMode!=="none")applyColorMode();
- }; update();liveTimer=setInterval(update,5000)
+
+function startLive(m,s){
+ if(liveTimer)clearInterval(liveTimer);
+ tempHistory=[];
+ const update=()=>{
+   const x=liveMetricsForMachine(m);
+   const ph=(Date.now()/DEMO_INTERVAL_MS)%20/20*Math.PI*2;
+   const load=Math.max(8,Math.min(99,x.util+s.loadAdd*.35+4*Math.sin(ph+.5)));
+   const vib=Math.max(.4,1.7+(load/100)*2.5+.3*Math.sin(ph*1.7));
+   const pow=Math.max(2,5+(load/100)*16+1.1*Math.sin(ph*1.2));
+   el("temp").textContent=x.temp.toFixed(1);
+   el("util").textContent=Math.round(x.util);
+   el("quality").textContent=x.quality.toFixed(1);
+   el("qmCount").textContent=Math.round(x.issues);
+   el("statusText").textContent=x.status;
+   const st=String(x.status).toLowerCase();
+   el("statusDot").style.background=st.includes("störung")?"var(--bad)":st.includes("wartung")?"#FB8C00":(st.includes("warn")||st.includes("rüst")||st.includes("kapazität"))?"var(--warn)":st.includes("bereit")||st.includes("prüf")?"#7CB342":"var(--ok)";
+   el("utilBar").style.width=x.util+"%";
+   el("qualityBar").style.width=x.quality+"%";
+   el("load").textContent=Math.round(load);
+   el("vibration").textContent=vib.toFixed(1);
+   el("power").textContent=pow.toFixed(1);
+   el("tempNeedle").style.left=Math.max(0,Math.min(100,(x.temp-20)/50*100))+"%";
+   el("loadBar").style.width=load+"%";
+   el("loadBarBox").className="bar "+(load>90?"bad":load>80?"warn":"");
+   tempHistory.push(x.temp);if(tempHistory.length>20)tempHistory.shift();
+   drawLine("tempChart",tempHistory,20,70,"#0478A0",55);
+   el("headTime").textContent=new Date().toLocaleTimeString("de-DE");
+   updateDynamicAlert(x.temp,load,s);
+ };
+ update();
+ liveTimer=setInterval(update,DEMO_INTERVAL_MS);
 }
 
-function updateDynamicAlert(temp,load,s){const a=[];if(temp>55)a.push(["bad","Temperaturwarnung","Spindeltemperatur "+temp.toFixed(1)+" °C · Grenzwert 55 °C"]);else a.push(["ok","Temperatur stabil","Aktuell "+temp.toFixed(1)+" °C · innerhalb des Zielbereichs"]);if(load>88)a.push(["warn","Spindellast hoch",Math.round(load)+" % · Lastspitze im Live-Zyklus"]);a.push(["info","Datenstream aktiv","Demo-Telemetrie · Refresh 5 s · Loop 90 s"]);el("alertList").innerHTML=a.map(x=>itemHtml(x[0],x[1],x[2],"jetzt")).join("")}
+function updateDynamicAlertfunction updateDynamicAlert(temp,load,s){const a=[];if(temp>55)a.push(["bad","Temperaturwarnung","Spindeltemperatur "+temp.toFixed(1)+" °C · Grenzwert 55 °C"]);else a.push(["ok","Temperatur stabil","Aktuell "+temp.toFixed(1)+" °C · innerhalb des Zielbereichs"]);if(load>88)a.push(["warn","Spindellast hoch",Math.round(load)+" % · Lastspitze im Live-Zyklus"]);a.push(["info","Datenstream aktiv","Demo-Telemetrie · Refresh 3 s · Loop ca. 60 s"]);el("alertList").innerHTML=a.map(x=>itemHtml(x[0],x[1],x[2],"jetzt")).join("")}
 
 function itemHtml(type,title,sub,time){return '<div class="rowItem"><span class="ico '+type+'">'+(type==="bad"?"!":type==="warn"?"!":type==="ok"?"✓":"i")+'</span><span><b>'+title+'</b><br><span class="small">'+sub+'</span></span><span class="small">'+time+'</span></div>'}
 function buildLists(m,s){
@@ -307,14 +418,15 @@ async function handleSelection(args){
 }
 
 async function init(){
- try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a)},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()})}
+ try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a)},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()});startColorLoop()}
  catch(e){el("notice").textContent="Startfehler: "+e.message}
 }
 
 document.querySelectorAll("[data-color-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
  document.querySelectorAll("[data-color-mode]").forEach(b=>b.classList.remove("active"));
- btn.classList.add("active");colorMode=btn.dataset.colorMode;await applyColorMode(true);
+ btn.classList.add("active");colorMode=btn.dataset.colorMode;updateColorLegend(colorMode);await applyColorMode(true);
 }));
+updateColorLegend("none");
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});el("modal").addEventListener("click",e=>{if(e.target===el("modal"))closeModal()});init();
 </script>
 </body></html>
