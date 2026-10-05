@@ -1,0 +1,7 @@
+{
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index.html",
+  "title": "LEANNOVA Maschinen-Cockpit",
+  "description": "PoC: Objektbezogenes Maschinen-Cockpit im Trimble Connect 3D Viewer",
+  "extensionType": ["3dviewer"],
+  "type": "panel"
+}
