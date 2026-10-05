@@ -1,7 +1,7 @@
 {
-  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-v2.html",
-  "title": "LEANNOVA Maschinen-Cockpit V2",
-  "description": "PoC V2: Maschinenfilter, QM-Drilldown und Live-Demo-Daten im Trimble Connect 3D Viewer",
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-v2.html?v=demo-20261005-6",
+  "title": "LEANNOVA Maschinen-Cockpit",
+  "description": "Interaktive Digital-Twin-Demo mit Live-Daten, QM- und Wartungs-Drilldowns",
   "extensionType": ["3dviewer"],
   "type": "panel"
 }
