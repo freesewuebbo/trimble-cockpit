@@ -385,7 +385,7 @@ function startLive(m,s){
  liveTimer=setInterval(update,DEMO_INTERVAL_MS);
 }
 
-function updateDynamicAlertfunction updateDynamicAlert(temp,load,s){const a=[];if(temp>55)a.push(["bad","Temperaturwarnung","Spindeltemperatur "+temp.toFixed(1)+" °C · Grenzwert 55 °C"]);else a.push(["ok","Temperatur stabil","Aktuell "+temp.toFixed(1)+" °C · innerhalb des Zielbereichs"]);if(load>88)a.push(["warn","Spindellast hoch",Math.round(load)+" % · Lastspitze im Live-Zyklus"]);a.push(["info","Datenstream aktiv","Demo-Telemetrie · Refresh 3 s · Loop ca. 60 s"]);el("alertList").innerHTML=a.map(x=>itemHtml(x[0],x[1],x[2],"jetzt")).join("")}
+function updateDynamicAlert(temp,load,s){const a=[];if(temp>55)a.push(["bad","Temperaturwarnung","Spindeltemperatur "+temp.toFixed(1)+" °C · Grenzwert 55 °C"]);else a.push(["ok","Temperatur stabil","Aktuell "+temp.toFixed(1)+" °C · innerhalb des Zielbereichs"]);if(load>88)a.push(["warn","Spindellast hoch",Math.round(load)+" % · Lastspitze im Live-Zyklus"]);a.push(["info","Datenstream aktiv","Demo-Telemetrie · Refresh 3 s · Loop ca. 60 s"]);el("alertList").innerHTML=a.map(x=>itemHtml(x[0],x[1],x[2],"jetzt")).join("")}
 
 function itemHtml(type,title,sub,time){return '<div class="rowItem"><span class="ico '+type+'">'+(type==="bad"?"!":type==="warn"?"!":type==="ok"?"✓":"i")+'</span><span><b>'+title+'</b><br><span class="small">'+sub+'</span></span><span class="small">'+time+'</span></div>'}
 function buildLists(m,s){
