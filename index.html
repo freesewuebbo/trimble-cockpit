@@ -9,48 +9,73 @@
     :root{
       --ln-blue:#0478A0;--ln-accent:#039ED2;--bg:#F3F5F6;--line:#D6D6D6;
       --mid:#AEB2B2;--text:#202629;--muted:#667177;--white:#fff;
-      --ok:#70AD47;--warn:#FFC000;--bad:#C00000;
+      --ok:#70AD47;--warn:#FFC000;--bad:#C00000;--soft:#F3FAFD;
     }
     *{box-sizing:border-box}
     html,body{margin:0;min-height:100%;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}
     .shell{min-height:100vh;background:var(--white);border-left:4px solid var(--ln-blue)}
-    header{padding:18px;border-bottom:1px solid var(--line)}
+    header{padding:16px 18px;border-bottom:1px solid var(--line)}
     .top{display:flex;justify-content:space-between;gap:12px;align-items:center}
     .brand{font-size:13px;font-weight:800;letter-spacing:.13em;color:var(--ln-blue)}
-    .conn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+    .conn{display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted)}
     .dot{width:8px;height:8px;border-radius:50%;background:var(--mid)}
     .dot.ok{background:var(--ok)} .dot.bad{background:var(--bad)}
-    h1{font-size:24px;line-height:1.15;margin:16px 0 4px;font-weight:700}
-    .sub{font-size:12px;color:var(--muted)}
-    main{padding:16px 18px 24px}
-    .notice{padding:10px 12px;background:#F3FAFD;border-left:3px solid var(--ln-accent);font-size:12px;line-height:1.45;margin-bottom:14px}
-    .statusrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0}
-    .pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);padding:5px 8px;font-size:11px;font-weight:700;background:#fff}
-    .sdot{width:8px;height:8px;border-radius:50%;background:var(--mid)}
+    h1{font-size:22px;line-height:1.15;margin:14px 0 4px;font-weight:700}
+    .sub{font-size:11px;color:var(--muted)}
+    main{padding:14px 16px 24px}
+    .notice{padding:9px 11px;background:var(--soft);border-left:3px solid var(--ln-accent);font-size:11px;line-height:1.4;margin-bottom:12px}
+    .notice.nomachine{background:#FAFAFA;border-left-color:var(--mid)}
+    .statusrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);padding:4px 7px;font-size:10px;font-weight:700;background:#fff}
+    .sdot{width:7px;height:7px;border-radius:50%;background:var(--mid)}
     .sdot.ok{background:var(--ok)} .sdot.warn{background:var(--warn)} .sdot.bad{background:var(--bad)}
-    .fallback{font-size:10px;color:var(--muted)}
-    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .card{border:1px solid var(--line);padding:13px;background:#fff}
+    .source{font-size:9px;color:var(--muted);text-align:right}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .card{border:1px solid var(--line);padding:11px;background:#fff;min-height:82px}
     .card.accent{border-top:3px solid var(--ln-blue)}
-    .label{font-size:11px;color:var(--muted);margin-bottom:5px}
-    .value{font-size:27px;line-height:1;font-weight:750;letter-spacing:-.03em}
-    .unit{font-size:13px;font-weight:500;color:var(--muted);margin-left:2px}
-    .bar{height:5px;background:#E9EDEE;margin-top:10px;overflow:hidden}
+    .card.clickable{cursor:pointer;position:relative}
+    .card.clickable:hover{border-color:var(--ln-accent);background:#FCFEFF}
+    .card.clickable .hint{font-size:9px;color:var(--ln-blue);margin-top:6px}
+    .card.live{grid-column:1/-1;border-top:3px solid var(--ln-accent)}
+    .livehead{display:flex;justify-content:space-between;gap:8px;align-items:center}
+    .livebadge{font-size:9px;font-weight:800;color:var(--ln-blue);background:#EAF7FC;padding:3px 6px}
+    .label{font-size:10px;color:var(--muted);margin-bottom:4px}
+    .value{font-size:25px;line-height:1;font-weight:750;letter-spacing:-.03em}
+    .unit{font-size:12px;font-weight:500;color:var(--muted);margin-left:2px}
+    .bar{height:5px;background:#E9EDEE;margin-top:9px;overflow:hidden}
     .bar>div{height:100%;width:0;background:var(--ln-accent);transition:width .25s ease}
-    .section{margin:18px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--ln-blue)}
-    .trend{border:1px solid var(--line);padding:12px;background:#fff}
-    .trendhead{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:8px}
-    .trendtitle{font-size:12px;font-weight:700}.trendmeta{font-size:10px;color:var(--muted)}
-    #trendSvg{width:100%;height:112px;display:block}
-    .obj{border:1px solid var(--line);background:#FAFBFB;padding:12px}
-    .row{display:grid;grid-template-columns:78px minmax(0,1fr);gap:8px;padding:4px 0;font-size:11px}
+    .tempmeta{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:9px;color:var(--muted)}
+    .section{margin:16px 0 7px;font-size:10px;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--ln-blue)}
+    .trend{border:1px solid var(--line);padding:10px;background:#fff}
+    .trendhead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
+    .trendtitle{font-size:11px;font-weight:700}.trendmeta{font-size:9px;color:var(--muted)}
+    #trendSvg{width:100%;height:98px;display:block}
+    .obj{border:1px solid var(--line);background:#FAFBFB;padding:10px}
+    .row{display:grid;grid-template-columns:70px minmax(0,1fr);gap:7px;padding:3px 0;font-size:10px}
     .row b{color:var(--muted);font-weight:600}
     .mono{font-family:Consolas,monospace;word-break:break-all}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    button{border:1px solid var(--ln-blue);background:#fff;color:var(--ln-blue);font:inherit;font-size:11px;font-weight:700;padding:7px 9px;cursor:pointer}
+    .actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+    button{border:1px solid var(--ln-blue);background:#fff;color:var(--ln-blue);font:inherit;font-size:10px;font-weight:700;padding:6px 8px;cursor:pointer}
     button.primary{background:var(--ln-blue);color:#fff}
     button:hover{filter:brightness(.97)}
-    footer{margin-top:14px;font-size:10px;line-height:1.5;color:var(--muted)}
+    footer{margin-top:12px;font-size:9px;line-height:1.45;color:var(--muted)}
+    .disabled{opacity:.45;pointer-events:none}
+
+    .modal{display:none;position:fixed;inset:0;background:rgba(25,35,40,.38);z-index:999;padding:18px}
+    .modal.open{display:flex;align-items:center;justify-content:center}
+    .modalbox{width:min(440px,100%);max-height:82vh;overflow:auto;background:#fff;border-top:5px solid var(--ln-blue);box-shadow:0 14px 40px rgba(0,0,0,.24)}
+    .modalhead{display:flex;justify-content:space-between;gap:8px;align-items:flex-start;padding:14px 15px;border-bottom:1px solid var(--line)}
+    .modalhead h2{font-size:17px;margin:0 0 3px}.modalhead p{font-size:10px;color:var(--muted);margin:0}
+    .close{border:0;background:transparent;color:var(--text);font-size:20px;padding:0 4px}
+    .qmlist{padding:8px 14px 14px}
+    .qmitem{padding:10px 0;border-bottom:1px solid #ECEFF0}
+    .qmitem:last-child{border-bottom:0}
+    .qmrow{display:flex;justify-content:space-between;gap:10px;align-items:center}
+    .qmid{font-size:10px;font-weight:800;color:var(--ln-blue)}
+    .qmstatus{font-size:9px;padding:2px 5px;background:#F2F4F5;color:var(--muted)}
+    .qmdesc{font-size:11px;font-weight:650;margin:5px 0 3px}
+    .qmdate{font-size:9px;color:var(--muted)}
+    .empty{padding:18px 0;text-align:center;color:var(--muted);font-size:11px}
   </style>
 </head>
 <body>
@@ -69,36 +94,55 @@
 
     <div class="statusrow">
       <div id="statusPill" class="pill"><span id="statusDot" class="sdot"></span><span id="statusText">Kein Objekt gewählt</span></div>
-      <div id="fallbackInfo" class="fallback"></div>
+      <div id="sourceInfo" class="source">Nur registrierte Maschinen</div>
     </div>
 
-    <div class="grid">
-      <div class="card accent">
-        <div class="label">Auslastung</div>
-        <div><span id="utilization" class="value">–</span><span class="unit">%</span></div>
-        <div class="bar"><div id="utilBar"></div></div>
-      </div>
-      <div class="card">
-        <div class="label">Qualitätsquote</div>
-        <div><span id="quality" class="value">–</span><span class="unit">%</span></div>
-      </div>
-      <div class="card">
-        <div class="label">Kapazität</div>
-        <div><span id="capacity" class="value">–</span><span class="unit">h</span></div>
-      </div>
-      <div class="card">
-        <div class="label">Offene QM-Punkte</div>
-        <div><span id="issues" class="value">–</span></div>
-      </div>
-    </div>
+    <div id="machinePanel" class="disabled">
+      <div class="grid">
+        <div class="card accent">
+          <div class="label">Auslastung</div>
+          <div><span id="utilization" class="value">–</span><span class="unit">%</span></div>
+          <div class="bar"><div id="utilBar"></div></div>
+        </div>
 
-    <div class="section">Trend</div>
-    <div class="trend">
-      <div class="trendhead">
-        <div class="trendtitle">Auslastung · letzte 7 Werte</div>
-        <div id="updatedAt" class="trendmeta">Datenstand: –</div>
+        <div class="card">
+          <div class="label">Qualitätsquote</div>
+          <div><span id="quality" class="value">–</span><span class="unit">%</span></div>
+        </div>
+
+        <div class="card">
+          <div class="label">Kapazität</div>
+          <div><span id="capacity" class="value">–</span><span class="unit">h</span></div>
+        </div>
+
+        <div id="qmCard" class="card clickable">
+          <div class="label">Offene QM-Punkte</div>
+          <div><span id="issues" class="value">–</span></div>
+          <div class="hint">Details öffnen ›</div>
+        </div>
+
+        <div class="card live">
+          <div class="livehead">
+            <div class="label">Maschinentemperatur</div>
+            <div class="livebadge">LIVE DEMO</div>
+          </div>
+          <div><span id="temperature" class="value">–</span><span class="unit">°C</span></div>
+          <div class="tempmeta">
+            <span>Aktualisierung alle 12 s</span>
+            <span id="liveTime">–</span>
+          </div>
+          <div class="bar"><div id="tempBar"></div></div>
+        </div>
       </div>
-      <svg id="trendSvg" viewBox="0 0 320 112" preserveAspectRatio="none" aria-label="Auslastungstrend"></svg>
+
+      <div class="section">Trend</div>
+      <div class="trend">
+        <div class="trendhead">
+          <div class="trendtitle">Auslastung · letzte 7 Werte</div>
+          <div id="updatedAt" class="trendmeta">Datenstand: –</div>
+        </div>
+        <svg id="trendSvg" viewBox="0 0 320 98" preserveAspectRatio="none" aria-label="Auslastungstrend"></svg>
+      </div>
     </div>
 
     <div class="section">Trimble-Objekt</div>
@@ -106,6 +150,7 @@
       <div class="row"><b>Modell-ID</b><span id="modelId" class="mono">–</span></div>
       <div class="row"><b>Objekt-ID</b><span id="objectId" class="mono">–</span></div>
       <div class="row"><b>Objektname</b><span id="objectName">–</span></div>
+      <div class="row"><b>Machine-ID</b><span id="machineId">–</span></div>
       <div class="actions">
         <button id="copyBtn" class="primary">Objekt-ID kopieren</button>
         <button id="reloadBtn">CSV neu laden</button>
@@ -113,16 +158,34 @@
     </div>
 
     <footer>
-      PoC mit Testdaten. Solange eine Objekt-ID nicht in <span class="mono">data.csv</span> vorhanden ist,
-      werden die DEFAULT-Daten angezeigt.
+      Demo-PoC: Betriebsdaten werden ausschließlich für Objekt-IDs angezeigt, die in
+      <span class="mono">data.csv</span> als Maschine registriert sind. Die Temperatur ist eine simulierte Live-Kennzahl
+      mit 90-Sekunden-Loop.
     </footer>
   </main>
+</div>
+
+<div id="qmModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="qmTitle">
+  <div class="modalbox">
+    <div class="modalhead">
+      <div>
+        <h2 id="qmTitle">Offene QM-Punkte</h2>
+        <p id="qmSubtitle">–</p>
+      </div>
+      <button id="closeModal" class="close" aria-label="Schließen">×</button>
+    </div>
+    <div id="qmList" class="qmlist"></div>
+  </div>
 </div>
 
 <script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
 <script>
   let API = null;
   let rows = [];
+  let currentObjectId = "";
+  let currentMachine = null;
+  let temperatureTimer = null;
+  let tempLoopStartedAt = 0;
 
   const el = id => document.getElementById(id);
 
@@ -152,12 +215,36 @@
     return "";
   }
 
+  function clearTemperatureLoop(){
+    if(temperatureTimer) clearInterval(temperatureTimer);
+    temperatureTimer = null;
+  }
+
+  function renderTemperature(){
+    if(!currentMachine) return;
+    const base = Number(currentMachine.temp_base_c || 40);
+    const elapsed = (Date.now() - tempLoopStartedAt) % 90000;
+    const phase = (elapsed / 90000) * Math.PI * 2;
+    const temp = base + 2.7*Math.sin(phase) + 0.7*Math.sin(phase*2 + 0.8);
+    const rounded = Math.round(temp*10)/10;
+    el("temperature").textContent = rounded.toFixed(1);
+    el("tempBar").style.width = Math.max(0, Math.min(100, ((rounded-15)/55)*100)) + "%";
+    el("liveTime").textContent = new Date().toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  }
+
+  function startTemperatureLoop(){
+    clearTemperatureLoop();
+    tempLoopStartedAt = Date.now();
+    renderTemperature();
+    temperatureTimer = setInterval(renderTemperature,12000);
+  }
+
   function drawTrend(history){
     const svg = el("trendSvg");
     const vals = (history || "").split("|").map(Number).filter(Number.isFinite);
     if(!vals.length){ svg.innerHTML = ""; return; }
 
-    const w=320,h=112,p=10,min=Math.min(...vals,0),max=Math.max(...vals,100);
+    const w=320,h=98,p=10,min=Math.min(...vals,0),max=Math.max(...vals,100);
     const span = Math.max(1,max-min);
     const pts = vals.map((v,i) => {
       const x = p + (vals.length===1 ? 0 : i*(w-2*p)/(vals.length-1));
@@ -166,40 +253,96 @@
     });
 
     const poly = pts.map(p => p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
-    const circles = pts.map(p => '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.8" fill="#0478A0"></circle>').join("");
+    const circles = pts.map(p => '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="2.6" fill="#0478A0"></circle>').join("");
     svg.innerHTML =
-      '<line x1="10" y1="102" x2="310" y2="102" stroke="#D6D6D6" stroke-width="1"></line>' +
-      '<line x1="10" y1="10" x2="10" y2="102" stroke="#D6D6D6" stroke-width="1"></line>' +
+      '<line x1="10" y1="'+(h-10)+'" x2="310" y2="'+(h-10)+'" stroke="#D6D6D6" stroke-width="1"></line>' +
+      '<line x1="10" y1="10" x2="10" y2="'+(h-10)+'" stroke="#D6D6D6" stroke-width="1"></line>' +
       '<polyline fill="none" stroke="#039ED2" stroke-width="3" points="'+poly+'"></polyline>' + circles;
   }
 
-  function renderData(data, usedDefault){
-    if(!data) return;
+  function parseQmDetails(raw){
+    if(!raw) return [];
+    return raw.split("||").filter(Boolean).map(item => {
+      const p = item.split("^");
+      return {id:p[0]||"QM",desc:p[1]||"Keine Beschreibung",status:p[2]||"Offen",date:p[3]||""};
+    });
+  }
+
+  function openQmModal(){
+    if(!currentMachine) return;
+    const items = parseQmDetails(currentMachine.qm_details);
+    el("qmTitle").textContent = "Offene QM-Punkte";
+    el("qmSubtitle").textContent = (currentMachine.machine_name || "Maschine") + " · " + (currentMachine.machine_id || "");
+    if(!items.length){
+      el("qmList").innerHTML = '<div class="empty">Keine offenen QM-Punkte vorhanden.</div>';
+    } else {
+      el("qmList").innerHTML = items.map(q =>
+        '<div class="qmitem">' +
+          '<div class="qmrow"><span class="qmid">'+escapeHtml(q.id)+'</span><span class="qmstatus">'+escapeHtml(q.status)+'</span></div>' +
+          '<div class="qmdesc">'+escapeHtml(q.desc)+'</div>' +
+          '<div class="qmdate">Stand: '+escapeHtml(q.date)+'</div>' +
+        '</div>'
+      ).join("");
+    }
+    el("qmModal").classList.add("open");
+  }
+
+  function escapeHtml(v){
+    return String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+  }
+
+  function closeQmModal(){ el("qmModal").classList.remove("open"); }
+
+  function renderMachine(data){
+    currentMachine = data;
+    el("machinePanel").classList.remove("disabled");
     el("machineName").textContent = data.machine_name || "Maschinen-Cockpit";
     el("statusText").textContent = data.status || "–";
     el("statusDot").className = "sdot " + statusClass(data.status);
     el("utilization").textContent = data.utilization_pct || "–";
     el("quality").textContent = data.quality_pct || "–";
     el("capacity").textContent = data.capacity_h || "–";
-    el("issues").textContent = data.quality_issues || "–";
+    el("issues").textContent = data.quality_issues || "0";
     el("updatedAt").textContent = "Datenstand: " + (data.updated_at || "–");
     el("utilBar").style.width = Math.max(0,Math.min(100,Number(data.utilization_pct)||0)) + "%";
-    el("fallbackInfo").textContent = usedDefault ? "DEFAULT-Testdaten" : "Objektdaten";
+    el("machineId").textContent = data.machine_id || "–";
+    el("sourceInfo").textContent = "Maschinendaten · " + (data.area || "Demo");
     drawTrend(data.history);
+    startTemperatureLoop();
   }
 
-  function findData(objectId){
-    const exact = rows.find(r => r.object_id === objectId);
-    if(exact) return {data:exact, usedDefault:false};
-    const fallback = rows.find(r => r.object_id === "DEFAULT");
-    return {data:fallback, usedDefault:true};
+  function clearMachine(reason){
+    currentMachine = null;
+    clearTemperatureLoop();
+    el("machinePanel").classList.add("disabled");
+    el("machineName").textContent = "Maschinen-Cockpit";
+    el("statusText").textContent = "Kein Maschinenobjekt";
+    el("statusDot").className = "sdot";
+    el("utilization").textContent = "–";
+    el("quality").textContent = "–";
+    el("capacity").textContent = "–";
+    el("issues").textContent = "–";
+    el("temperature").textContent = "–";
+    el("updatedAt").textContent = "Datenstand: –";
+    el("utilBar").style.width = "0%";
+    el("tempBar").style.width = "0%";
+    el("trendSvg").innerHTML = "";
+    el("machineId").textContent = "–";
+    el("sourceInfo").textContent = "Nur registrierte Maschinen";
+    if(reason) el("notice").textContent = reason;
+  }
+
+  function findMachine(objectId){
+    return rows.find(r => r.object_id === objectId) || null;
   }
 
   async function handleSelection(selectionArg){
     try{
       const selection = selectionArg && selectionArg.data ? selectionArg.data : await API.viewer.getSelection();
       if(!selection || !selection.length){
+        el("notice").className = "notice";
         el("notice").textContent = "Bitte ein Maschinenobjekt im 3D-Modell auswählen.";
+        clearMachine();
         return;
       }
 
@@ -214,7 +357,7 @@
         const ids = await API.viewer.convertToObjectIds(modelId,[runtimeId]);
         objectId = ids && ids[0] ? ids[0] : "";
       }catch(e){
-        objectId = "Keine externe Objekt-ID ermittelt";
+        objectId = "";
       }
 
       let objectName = "Ausgewähltes Objekt";
@@ -225,17 +368,29 @@
           : objectName;
       }catch(e){}
 
+      currentObjectId = objectId;
       el("modelId").textContent = modelId || "–";
       el("objectId").textContent = objectId || "–";
       el("objectName").textContent = objectName;
-      el("notice").textContent = "Trimble-Objekt erkannt. Die Cockpitdaten werden über die Objekt-ID zugeordnet.";
 
-      const match = findData(objectId);
-      renderData(match.data, match.usedDefault);
+      const machine = findMachine(objectId);
+      if(machine){
+        el("notice").className = "notice";
+        el("notice").textContent = "Maschinenobjekt erkannt. Betriebs- und Demo-Livedaten sind aktiv.";
+        renderMachine(machine);
+      } else {
+        el("notice").className = "notice nomachine";
+        clearMachine('"' + objectName + '" ist kein registriertes Maschinenobjekt. Für dieses Bauteil werden bewusst keine Maschinendaten angezeigt.');
+      }
     }catch(err){
+      el("notice").className = "notice";
       el("notice").textContent = "Fehler beim Lesen des ausgewählten Objekts: " + err.message;
     }
   }
+
+  el("qmCard").addEventListener("click", openQmModal);
+  el("closeModal").addEventListener("click", closeQmModal);
+  el("qmModal").addEventListener("click", e => { if(e.target === el("qmModal")) closeQmModal(); });
 
   el("copyBtn").addEventListener("click", async () => {
     const value = el("objectId").textContent;
@@ -249,7 +404,9 @@
   el("reloadBtn").addEventListener("click", async () => {
     try{
       await loadCsv();
-      el("notice").textContent = "CSV neu geladen. Objekt erneut auswählen oder Auswahl ändern.";
+      const machine = findMachine(currentObjectId);
+      if(machine) renderMachine(machine);
+      else clearMachine("CSV neu geladen. Das aktuell gewählte Objekt ist kein registriertes Maschinenobjekt.");
     }catch(err){
       el("notice").textContent = err.message;
     }
@@ -269,6 +426,22 @@
       el("connText").textContent = "Mit Trimble verbunden";
       el("notice").textContent = "Verbunden. Bitte ein Maschinenobjekt im 3D-Modell auswählen.";
       await handleSelection({data: await API.viewer.getSelection()});
+
+      setInterval(async () => {
+        try{
+          await loadCsv();
+          const machine = findMachine(currentObjectId);
+          if(machine && currentMachine) {
+            currentMachine = machine;
+            el("utilization").textContent = machine.utilization_pct || "–";
+            el("quality").textContent = machine.quality_pct || "–";
+            el("capacity").textContent = machine.capacity_h || "–";
+            el("issues").textContent = machine.quality_issues || "0";
+            el("updatedAt").textContent = "Datenstand: " + (machine.updated_at || "–");
+            drawTrend(machine.history);
+          }
+        }catch(e){}
+      },60000);
     }catch(err){
       el("connDot").className = "dot bad";
       el("connText").textContent = "Verbindung fehlgeschlagen";
