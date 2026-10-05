@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEANNOVA Factory Planner V4 - Gate 1</title>
+<style>
+:root{--blue:#0478A0;--cyan:#039ED2;--navy:#073A5A;--bg:#F4F6F7;--line:#DDE3E6;--text:#1D2529;--muted:#66757D;--ok:#2E7D32;--warn:#B7791F;--bad:#C62828;--soft:#EAF7FC}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}
+body{overflow-x:hidden}.shell{min-height:100vh;background:#fff;border-left:4px solid var(--blue)}
+header{padding:12px 14px 10px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfdfe)}
+.brand{font-size:16px;font-weight:800}.sub{font-size:9px;color:var(--muted);margin-top:3px}.badge{display:inline-block;margin-top:7px;padding:3px 6px;border:1px solid rgba(4,120,160,.25);background:var(--soft);color:var(--blue);font-size:8px;font-weight:800;letter-spacing:.08em}
+main{padding:12px 14px 24px}.notice{padding:9px 10px;border-left:3px solid var(--cyan);background:var(--soft);font-size:10px;margin-bottom:10px;line-height:1.45}.notice.warn{border-color:#E0A000;background:#FFF8E5}.notice.bad{border-color:var(--bad);background:#FCEDEC}
+.card{border:1px solid var(--line);background:#fff;padding:10px;margin-bottom:9px}.card h2{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin:0 0 8px}.kv{display:grid;grid-template-columns:88px 1fr;gap:5px;font-size:9px;padding:2px 0}.kv b{color:var(--muted);font-weight:700}.mono{font-family:Consolas,monospace;word-break:break-all}.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.btn{border:1px solid var(--blue);background:#fff;color:var(--blue);padding:7px 8px;font:inherit;font-size:9px;font-weight:750;cursor:pointer}.btn.primary{background:var(--blue);color:#fff}.btn.warn{border-color:#B7791F;color:#8A5A0A}.btn.bad{border-color:var(--bad);color:var(--bad)}.btn:disabled{opacity:.35;cursor:not-allowed}
+.grid4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.field label{display:block;font-size:8px;color:var(--muted);margin-bottom:3px}.field input{width:100%;border:1px solid var(--line);padding:7px;font:inherit;font-size:10px;background:#fff}.unit{font-size:8px;color:var(--muted)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.pad .btn{min-height:34px}.metricGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.metric{border:1px solid var(--line);padding:8px;text-align:center}.metric .n{font-size:16px;font-weight:800}.metric .l{font-size:7px;color:var(--muted);margin-top:2px}.status{display:flex;align-items:center;gap:6px;font-size:9px}.dot{width:8px;height:8px;border-radius:50%;background:#AAB4B8}.dot.ok{background:var(--ok)}.dot.warn{background:#E0A000}.dot.bad{background:var(--bad)}
+.log{max-height:170px;overflow:auto;border:1px solid var(--line);background:#FAFBFB;font-family:Consolas,monospace;font-size:8px;padding:7px;white-space:pre-wrap}.hint{font-size:8px;color:var(--muted);line-height:1.45;margin-top:7px}.pickBox{padding:8px;border:1px dashed var(--cyan);background:#F7FCFE;font-size:9px;margin-top:7px}.pickBox.active{border-style:solid;background:#EAF7FC;color:var(--blue);font-weight:700}
+@media(max-width:520px){.metricGrid{grid-template-columns:1fr}.grid4{grid-template-columns:1fr}.pad{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header>
+  <div class="brand">LEANNOVA Factory Planner</div>
+  <div class="sub">Gate 1 - Modellplatzierung in Trimble Connect testen</div>
+  <span class="badge">V4 LAYOUT POC</span>
+</header>
+<main>
+  <div id="notice" class="notice">Verbinde mit Trimble Connect ...</div>
+
+  <div class="card">
+    <h2>1. Planungsobjekt auswaehlen</h2>
+    <div class="kv"><b>Modell</b><span id="modelName">-</span></div>
+    <div class="kv"><b>Model-ID</b><span id="modelId" class="mono">-</span></div>
+    <div class="kv"><b>Objekt</b><span id="objectName">-</span></div>
+    <div class="kv"><b>Objekt-ID</b><span id="objectId" class="mono">-</span></div>
+    <div class="row" style="margin-top:8px">
+      <button id="lockBtn" class="btn primary" disabled>Planungsobjekt fixieren</button>
+      <button id="unlockBtn" class="btn" disabled>Fixierung loesen</button>
+    </div>
+    <div class="hint">Wichtig: Dieser Gate-Test bewegt das <b>gesamte Modell</b>, zu dem das angeklickte IFC-Objekt gehoert. Fuer den Test deshalb eine Maschine als eigenes IFC/Modell laden.</div>
+  </div>
+
+  <div class="card">
+    <h2>2. Position und Rotation</h2>
+    <div class="grid4">
+      <div class="field"><label>X <span class="unit">mm</span></label><input id="x" type="number" step="100" value="0"></div>
+      <div class="field"><label>Y <span class="unit">mm</span></label><input id="y" type="number" step="100" value="0"></div>
+      <div class="field"><label>Z <span class="unit">mm</span></label><input id="z" type="number" step="100" value="0"></div>
+      <div class="field"><label>Rotation Z <span class="unit">Grad</span></label><input id="rot" type="number" step="1" value="0"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="applyBtn" class="btn primary" disabled>Position anwenden</button>
+      <button id="readBtn" class="btn" disabled>Aus Trimble neu lesen</button>
+      <button id="undoBtn" class="btn" disabled>Rueckgaengig</button>
+      <button id="resetBtn" class="btn bad" disabled>Auf Ausgangsposition</button>
+    </div>
+    <div class="pad">
+      <button class="btn nudge" data-axis="x" data-delta="-1000" disabled>X -1 m</button>
+      <button class="btn nudge" data-axis="x" data-delta="1000" disabled>X +1 m</button>
+      <button class="btn nudge" data-axis="y" data-delta="-1000" disabled>Y -1 m</button>
+      <button class="btn nudge" data-axis="y" data-delta="1000" disabled>Y +1 m</button>
+      <button class="btn nudge" data-axis="rot" data-delta="-15" disabled>-15 Grad</button>
+      <button class="btn nudge" data-axis="rot" data-delta="15" disabled>+15 Grad</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. Zielpunkt im 3D-Modell</h2>
+    <div class="row">
+      <button id="pickBtn" class="btn warn" disabled>Zielpunkt waehlen</button>
+      <button id="applyPickBtn" class="btn primary" disabled>Auf Zielpunkt setzen</button>
+    </div>
+    <div id="pickBox" class="pickBox">Noch kein Zielpunkt gewaehlt.</div>
+    <div class="hint">Nach „Zielpunkt waehlen“ einmal auf den Hallenboden klicken. Der Pick liefert die 3D-Koordinate. Die fixierte Maschine bleibt das zu bewegende Objekt.</div>
+  </div>
+
+  <div class="card">
+    <h2>4. Gate-Messung</h2>
+    <div class="metricGrid">
+      <div class="metric"><div id="calls" class="n">0</div><div class="l">PLACE-MODEL CALLS</div></div>
+      <div class="metric"><div id="lastMs" class="n">-</div><div class="l">LETZTE API-LATENZ MS</div></div>
+      <div class="metric"><div id="avgMs" class="n">-</div><div class="l">MITTELWERT MS</div></div>
+    </div>
+    <div class="status" style="margin-top:9px"><span id="roundtripDot" class="dot"></span><span id="roundtripText">Noch kein Roundtrip-Test.</span></div>
+    <div class="hint">Nach jedem Platzieren liest die App die Modellplatzierung erneut aus Trimble. Erst wenn Soll und Ruecklesewert zusammenpassen, gilt der Schritt als technisch bestaetigt.</div>
+  </div>
+
+  <div class="card">
+    <h2>Technik-Log</h2>
+    <div id="log" class="log"></div>
+  </div>
+</main>
+</div>
+<script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
+<script>
+let API=null;
+let candidate=null;
+let locked=null;
+let initialPlacement=null;
+let previousPlacement=null;
+let currentPlacement=null;
+let lastPick=null;
+let pickMode=false;
+let latencies=[];
+
+const el=id=>document.getElementById(id);
+const clone=v=>JSON.parse(JSON.stringify(v));
+const num=(id,fallback=0)=>{const v=Number(el(id).value);return Number.isFinite(v)?v:fallback};
+const vec=(v,d)=>({x:Number(v?.x??d.x),y:Number(v?.y??d.y),z:Number(v?.z??d.z)});
+const normDeg=d=>{let x=Number(d)||0;while(x>180)x-=360;while(x<=-180)x+=360;return x};
+const toRad=d=>d*Math.PI/180;
+const toDeg=r=>r*180/Math.PI;
+
+function log(msg){const t=new Date().toLocaleTimeString('de-DE');el('log').textContent='['+t+'] '+msg+'\n'+el('log').textContent}
+function setNotice(msg,type=''){el('notice').className='notice'+(type?' '+type:'');el('notice').innerHTML=msg}
+function defaultPlacement(){return{position:{x:0,y:0,z:0},axis:{x:0,y:0,z:1},refDirection:{x:1,y:0,z:0},scale:1}}
+function normalizePlacement(p){const d=defaultPlacement();return{position:vec(p?.position,d.position),axis:vec(p?.axis,d.axis),refDirection:vec(p?.refDirection,d.refDirection),scale:Number(p?.scale??1)||1}}
+function angleFromPlacement(p){const r=normalizePlacement(p).refDirection;return normDeg(toDeg(Math.atan2(r.y,r.x)))}
+function placementFromInputs(base){const angle=toRad(num('rot'));const b=normalizePlacement(base);return{position:{x:num('x'),y:num('y'),z:num('z')},axis:b.axis,refDirection:{x:Math.cos(angle),y:Math.sin(angle),z:0},scale:b.scale}}
+function inputsFromPlacement(p){const n=normalizePlacement(p);el('x').value=Math.round(n.position.x*1000)/1000;el('y').value=Math.round(n.position.y*1000)/1000;el('z').value=Math.round(n.position.z*1000)/1000;el('rot').value=Math.round(angleFromPlacement(n)*1000)/1000}
+function setControls(enabled){['applyBtn','readBtn','undoBtn','resetBtn','pickBtn'].forEach(id=>el(id).disabled=!enabled);document.querySelectorAll('.nudge').forEach(b=>b.disabled=!enabled);el('applyPickBtn').disabled=!(enabled&&lastPick)}
+function placementsClose(a,b){a=normalizePlacement(a);b=normalizePlacement(b);const dp=Math.hypot(a.position.x-b.position.x,a.position.y-b.position.y,a.position.z-b.position.z);const da=Math.abs(normDeg(angleFromPlacement(a)-angleFromPlacement(b)));return{ok:dp<1&&da<0.05,dp,da}}
+
+async function getModelSpec(modelId){const models=await API.viewer.getModels();return (models||[]).find(m=>m.id===modelId||m.versionId===modelId)||null}
+async function resolveSelection(sel){if(!sel||!sel.length)return null;const first=sel[0];const rid=(first.objectRuntimeIds||[])[0];if(rid===undefined||rid===null)return null;let oid='',name='Ausgewaehltes Objekt';try{const ids=await API.viewer.convertToObjectIds(first.modelId,[rid]);oid=ids?.[0]||''}catch(e){log('Objekt-ID nicht lesbar: '+e.message)}try{const p=await API.viewer.getObjectProperties(first.modelId,[rid]);name=p?.[0]?.product?.name||name}catch(e){}const spec=await getModelSpec(first.modelId);return{modelId:first.modelId,modelName:spec?.name||first.modelId,objectRuntimeId:rid,objectId:oid,objectName:name,placement:normalizePlacement(spec?.placement)}}
+function renderCandidate(c){el('modelName').textContent=c?.modelName||'-';el('modelId').textContent=c?.modelId||'-';el('objectName').textContent=c?.objectName||'-';el('objectId').textContent=c?.objectId||'-';el('lockBtn').disabled=!c||!!locked;el('unlockBtn').disabled=!locked}
+
+async function handleSelection(args){if(locked){return}try{const sel=args?.data||await API.viewer.getSelection();candidate=await resolveSelection(sel);renderCandidate(candidate);if(candidate){inputsFromPlacement(candidate.placement);setNotice('Modell erkannt. <b>Fixiere es als Planungsobjekt</b>, bevor du die Position veraenderst.','warn');log('Auswahl: '+candidate.modelName+' / '+candidate.objectName)}else{setNotice('Bitte ein Objekt in dem Maschinenmodell auswaehlen.','warn')}}catch(e){setNotice('Auswahlfehler: '+e.message,'bad');log('Auswahlfehler: '+e.message)}}
+
+async function lockCandidate(){if(!candidate)return;locked=clone(candidate);const spec=await getModelSpec(locked.modelId);currentPlacement=normalizePlacement(spec?.placement);initialPlacement=clone(currentPlacement);previousPlacement=null;inputsFromPlacement(currentPlacement);renderCandidate(locked);setControls(true);setNotice('Planungsobjekt fixiert: <b>'+locked.modelName+'</b>. Jetzt kann das komplette Modell verschoben und gedreht werden.');log('Fixiert: '+locked.modelName+' @ '+JSON.stringify(currentPlacement))}
+function unlock(){locked=null;initialPlacement=null;previousPlacement=null;currentPlacement=null;pickMode=false;el('pickBox').classList.remove('active');renderCandidate(candidate);setControls(false);setNotice('Fixierung geloest. Neues Planungsobjekt auswaehlen.','warn');log('Fixierung geloest')}
+
+async function readBack(){if(!locked)return null;const spec=await getModelSpec(locked.modelId);currentPlacement=normalizePlacement(spec?.placement);inputsFromPlacement(currentPlacement);log('Rueckgelesen: '+JSON.stringify(currentPlacement));return currentPlacement}
+
+async function applyPlacement(target,reason='manuell'){
+ if(!locked)return;
+ previousPlacement=clone(currentPlacement||initialPlacement||defaultPlacement());
+ const start=performance.now();
+ try{
+   await API.viewer.placeModel(locked.modelId,target);
+   const ms=performance.now()-start;latencies.push(ms);if(latencies.length>50)latencies.shift();
+   el('calls').textContent=latencies.length;el('lastMs').textContent=Math.round(ms);el('avgMs').textContent=Math.round(latencies.reduce((a,b)=>a+b,0)/latencies.length);
+   const rb=await getModelSpec(locked.modelId);currentPlacement=normalizePlacement(rb?.placement);inputsFromPlacement(currentPlacement);
+   const cmp=placementsClose(target,currentPlacement);el('roundtripDot').className='dot '+(cmp.ok?'ok':'bad');el('roundtripText').textContent=cmp.ok?'Roundtrip OK - Position/Rotation stimmen.':'Abweichung: '+cmp.dp.toFixed(1)+' mm / '+cmp.da.toFixed(3)+' Grad';
+   el('undoBtn').disabled=false;log('placeModel '+reason+' - '+Math.round(ms)+' ms - roundtrip '+(cmp.ok?'OK':'FEHLER'));
+ }catch(e){el('roundtripDot').className='dot bad';el('roundtripText').textContent='placeModel fehlgeschlagen: '+e.message;setNotice('Trimble konnte das Modell nicht platzieren: '+e.message,'bad');log('placeModel FEHLER: '+e.message)}
+}
+
+async function nudge(axis,delta){if(!locked)return;const p=placementFromInputs(currentPlacement);if(axis==='rot'){el('rot').value=normDeg(num('rot')+delta)}else{el(axis).value=num(axis)+delta}await applyPlacement(placementFromInputs(p),'Nudge '+axis+' '+delta)}
+async function undo(){if(!locked||!previousPlacement)return;const target=clone(previousPlacement);previousPlacement=clone(currentPlacement);await applyPlacement(target,'Undo')}
+async function reset(){if(!locked||!initialPlacement)return;await applyPlacement(clone(initialPlacement),'Reset')}
+function armPick(){if(!locked)return;pickMode=true;el('pickBox').classList.add('active');el('pickBox').textContent='Zielpunktmodus aktiv - jetzt einmal im 3D-Modell auf den Hallenboden klicken.';log('Zielpunktmodus aktiviert')}
+function handlePick(args){if(!pickMode)return;const d=args?.data;if(!d?.position)return;lastPick={x:Number(d.position.x),y:Number(d.position.y),z:Number(d.position.z)};pickMode=false;el('pickBox').classList.remove('active');el('pickBox').textContent='Zielpunkt: X '+lastPick.x.toFixed(1)+' | Y '+lastPick.y.toFixed(1)+' | Z '+lastPick.z.toFixed(1)+' mm';el('applyPickBtn').disabled=!locked;log('Zielpunkt: '+JSON.stringify(lastPick))}
+async function applyPick(){if(!locked||!lastPick)return;el('x').value=lastPick.x;el('y').value=lastPick.y;el('z').value=lastPick.z;await applyPlacement(placementFromInputs(currentPlacement),'Zielpunkt')}
+
+async function init(){
+ try{
+   API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{
+     if(event==='viewer.onSelectionChanged')handleSelection(args);
+     if(event==='viewer.onPicked')handlePick(args);
+   },30000);
+   setNotice('Verbunden. Waehle jetzt ein Objekt in einer <b>separat geladenen Maschinen-IFC</b> aus.','warn');
+   log('Workspace API verbunden');
+   const sel=await API.viewer.getSelection();if(sel?.length)await handleSelection({data:sel});
+ }catch(e){setNotice('Startfehler: '+e.message,'bad');log('Startfehler: '+e.message)}
+}
+
+el('lockBtn').addEventListener('click',lockCandidate);
+el('unlockBtn').addEventListener('click',unlock);
+el('applyBtn').addEventListener('click',()=>applyPlacement(placementFromInputs(currentPlacement),'Eingabefelder'));
+el('readBtn').addEventListener('click',readBack);
+el('undoBtn').addEventListener('click',undo);
+el('resetBtn').addEventListener('click',reset);
+el('pickBtn').addEventListener('click',armPick);
+el('applyPickBtn').addEventListener('click',applyPick);
+document.querySelectorAll('.nudge').forEach(b=>b.addEventListener('click',()=>nudge(b.dataset.axis,Number(b.dataset.delta))));
+setControls(false);
+init();
+</script>
+</body>
+</html>
