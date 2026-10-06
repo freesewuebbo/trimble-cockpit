@@ -1,7 +1,7 @@
 {
-  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-fp-r01.html?build=20261006-r01d",
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-fp-r01.html?build=20261006-r01e",
   "title": "LEANNOVA Realistic View R01",
-  "description": "R01 rendert validierte echte IFC-Geometrie aus Trimble Connect oder aus einer lokalen IFC-Datei. Mit Diagnose, sicherem web-ifc Loader, Licht, Schatten, Auswahl-Synchronisation und separater Grossansicht.",
+  "description": "R01 Scene Sync fuer Trimble Connect: echte IFC-Geometrie, Kamera-Synchronisation, Schnittebenen, Auswahl, Punktwolken-Erkennung, Licht, Schatten und Grossansicht.",
   "extensionType": ["3dviewer"],
   "type": "panel"
 }
