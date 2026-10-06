@@ -278,7 +278,7 @@ function updateColorLegend(mode){
  el("colorLegend").innerHTML=(legends[mode]||legends.none).map(x=>'<span><i class="legendDot" style="background:'+x[0]+'"></i><b>'+x[1]+'</b> · '+x[2]+'</span>').join("");
 }
 
-async function discoverMachineRuntimeMapasync function discoverMachineRuntimeMap(force=false){
+async function discoverMachineRuntimeMap(force=false){
  if(!API)return;
  if(machineRuntimeMap.size&&!force)return;
  machineRuntimeMap=new Map();
@@ -325,7 +325,7 @@ function startColorLoop(){
  colorTimer=setInterval(()=>{if(colorMode!=="none")applyColorMode(false)},DEMO_INTERVAL_MS);
 }
 
-function scenario(m){function scenario(m){
+function scenario(m){
  const id=m.machine_id||"";
  if(id.includes("BAZ-02"))return{status:"Wartung",tempAdd:14,loadAdd:-25,qmAdd:1,kind:"maintenance"};
  if(id.includes("LAS"))return{status:"Qualitätswarnung",tempAdd:7,loadAdd:12,qmAdd:2,kind:"quality"};
