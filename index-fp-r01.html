@@ -20,7 +20,7 @@ button:hover{border-color:var(--blue);color:var(--blue)}button.primary{backgroun
 .hud{position:absolute;left:8px;top:8px;display:flex;gap:4px;flex-wrap:wrap;pointer-events:none}
 .pill{background:rgba(255,255,255,.91);border:1px solid rgba(255,255,255,.75);box-shadow:0 2px 8px rgba(0,0,0,.08);padding:4px 6px;font-size:7px;font-weight:800;color:#3e4d54}
 .help{position:absolute;left:8px;bottom:8px;right:8px;background:rgba(10,20,25,.73);color:#fff;padding:6px 8px;font-size:7px;line-height:1.45;pointer-events:none}
-.footer{flex:0 0 auto;border-top:1px solid var(--line);background:#fff;padding:7px 8px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.footer{flex:0 0 auto;border-top:1px solid var(--line);background:#fff;padding:7px 8px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
 .stat{border:1px solid var(--line);padding:6px 7px;min-width:0}.stat .n{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat .l{font-size:6px;color:var(--muted);margin-top:1px}
 .diag{position:absolute;right:8px;top:8px;width:min(280px,48%);background:rgba(255,255,255,.94);border:1px solid rgba(255,255,255,.85);box-shadow:0 4px 16px rgba(0,0,0,.10);padding:7px 8px;font-size:6.8px;line-height:1.45;display:none}
 .diag.show{display:block}.diag h3{font-size:7px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin:0 0 4px}.diag table{width:100%;border-collapse:collapse}.diag td{padding:1px 0;vertical-align:top}.diag td:first-child{color:var(--muted);width:36%;padding-right:6px}.diag .good{color:var(--ok)}.diag .bad{color:var(--bad)}
@@ -35,13 +35,13 @@ button:hover{border-color:var(--blue);color:var(--blue)}button.primary{backgroun
 <body>
 <div class="app">
 <header>
-  <div class="brand"><h1>LEANNOVA Realistic View</h1><span class="tag">R01 · IFC CORE</span></div>
-  <div class="sub">Echte IFC-Geometrie · sichere IFC-Prüfung · keine Bounding-Box-Ersatzdarstellung</div>
+  <div class="brand"><h1>LEANNOVA Realistic View</h1><span class="tag">R01 · SCENE SYNC</span></div>
+  <div class="sub">Trimble-Szene synchronisieren · Kamera · Schnitte · Punktwolken · echte IFC-Geometrie</div>
   <div class="toolbar">
-    <button id="trimbleBtn" class="primary">IFC aus Trimble laden</button>
-    <button id="localBtn">IFC lokal öffnen</button>
+    <button id="trimbleBtn" class="primary">Trimble-Szene synchronisieren</button>
+    <button id="localBtn" style="display:none">IFC lokal öffnen</button>
     <button id="largeBtn">Großansicht ↗</button>
-    <button id="diagBtn">Diagnose</button>
+    <button id="cameraBtn">Kamera übernehmen</button><button id="sectionsBtn" class="active">Schnitte</button><button id="pointsBtn" class="active">Punktwolken</button><button id="diagBtn">Diagnose</button>
     <button id="realBtn" class="active">Realistisch</button>
     <button id="ifcBtn">IFC-Farben</button>
     <button id="dayBtn" class="active">Tag</button>
@@ -55,7 +55,7 @@ button:hover{border-color:var(--blue);color:var(--blue)}button.primary{backgroun
 <div id="status" class="warn">R01 wird initialisiert …</div>
 <div class="stage">
   <canvas id="view"></canvas>
-  <div class="hud"><span id="hudSource" class="pill">keine Quelle</span><span id="hudElem" class="pill">0 Elemente</span><span class="pill">echte IFC-Dreiecke</span></div>
+  <div class="hud"><span id="hudSource" class="pill">keine Quelle</span><span id="hudElem" class="pill">0 Elemente</span><span id="hudPoints" class="pill">0 Punktwolken</span><span id="hudCuts" class="pill">0 Schnitte</span></div>
   <div id="diag" class="diag">
     <h3>IFC-Diagnose</h3>
     <table>
@@ -68,11 +68,13 @@ button:hover{border-color:var(--blue);color:var(--blue)}button.primary{backgroun
       <tr><td>web-ifc</td><td id="dParser">–</td></tr>
     </table>
   </div>
-  <div class="help"><b>Maus:</b> links drehen · rechts verschieben · Mausrad zoomen · Bauteil anklicken = Auswahl. R01 rendert nur bestätigte IFC-Rohdaten; fehlerhafte Daten werden nicht mehr an web-ifc weitergereicht.</div>
+  <div class="help"><b>R01 Scene Sync:</b> übernimmt die aktuelle Trimble-Kamera, Schnittebenen, Auswahl und erkannte Punktwolken. Punktwolken werden nur extern dargestellt, wenn Trimble eine browserlesbare Quelle bereitstellt.</div>
 </div>
 <div class="footer">
   <div class="stat"><div id="modelN" class="n">0</div><div class="l">IFC-MODELLE</div></div>
   <div class="stat"><div id="elementN" class="n">0</div><div class="l">IFC-ELEMENTE</div></div>
+  <div class="stat"><div id="pointN" class="n">0</div><div class="l">PUNKTWOLKEN</div></div>
+  <div class="stat"><div id="cutN" class="n">0</div><div class="l">SCHNITTE</div></div>
   <div class="stat"><div id="triangleN" class="n">0</div><div class="l">DREIECKE</div></div>
   <div class="stat"><div id="selectedN" class="n">–</div><div class="l">AUSWAHL</div></div>
 </div>
@@ -90,7 +92,7 @@ const standalone=params.get('standalone')==='1';
 const session=params.get('session')||'';
 
 let API=null,ifcApi=null,busy=false,colorMode='real',shadowOn=true;
-let root=null,records=[],rawSources=[],elementCount=0,triangleCount=0,currentDiag=null,selected=[];
+let root=null,records=[],rawSources=[],elementCount=0,triangleCount=0,currentDiag=null,selected=[],trimblePointClouds=[],trimbleSectionPlanes=[],sectionsEnabled=true,pointsEnabled=true;
 const elementMap=new Map();
 
 const el=id=>document.getElementById(id);
@@ -101,7 +103,7 @@ renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.05;
 renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.localClippingEnabled=true;
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0xe7edef);
@@ -125,7 +127,7 @@ const grid=new THREE.GridHelper(500,250,0x89979e,0xcbd3d6);grid.position.y=.004;
 
 function status(text,kind=''){el('status').className=kind;el('status').textContent=text}
 function fmtBytes(n){if(!Number.isFinite(n))return'–';if(n<1024)return n+' B';if(n<1048576)return(n/1024).toFixed(1)+' KB';return(n/1048576).toFixed(2)+' MB'}
-function updateStats(){el('modelN').textContent=records.length;el('elementN').textContent=elementCount.toLocaleString('de-DE');el('triangleN').textContent=triangleCount.toLocaleString('de-DE');el('selectedN').textContent=selected.length?String(selected.length):'–';el('hudElem').textContent=elementCount.toLocaleString('de-DE')+' Elemente'}
+function updateStats(){el('modelN').textContent=records.length;el('elementN').textContent=elementCount.toLocaleString('de-DE');el('triangleN').textContent=triangleCount.toLocaleString('de-DE');el('selectedN').textContent=selected.length?String(selected.length):'–';el('pointN').textContent=trimblePointClouds.length;el('cutN').textContent=trimbleSectionPlanes.length;el('hudElem').textContent=elementCount.toLocaleString('de-DE')+' Elemente';el('hudPoints').textContent=trimblePointClouds.length+' Punktwolken';el('hudCuts').textContent=trimbleSectionPlanes.length+' Schnitte'}
 function setDiag(d){
   currentDiag=d;
   el('dSource').textContent=d.source||'–';el('dName').textContent=d.name||'–';el('dSize').textContent=fmtBytes(d.size);el('dMime').textContent=d.mime||'–';
@@ -287,6 +289,61 @@ function fitCamera(){
   const g=Math.max(50,d*3.2);ground.scale.set(g/500,g/500,1);grid.scale.set(g/500,g/500,g/500);
   sun.shadow.camera.left=-d;sun.shadow.camera.right=d;sun.shadow.camera.top=d;sun.shadow.camera.bottom=-d;sun.shadow.camera.near=.1;sun.shadow.camera.far=d*5;sun.shadow.camera.updateProjectionMatrix()
 }
+
+function v3(v){
+  if(!v)return new THREE.Vector3();
+  if(Array.isArray(v))return new THREE.Vector3(Number(v[0])||0,Number(v[1])||0,Number(v[2])||0);
+  return new THREE.Vector3(Number(v.x)||0,Number(v.y)||0,Number(v.z)||0);
+}
+function trimbleToThree(v){
+  const p=v3(v);return new THREE.Vector3(p.x,p.z,-p.y);
+}
+async function syncTrimbleCamera(){
+  if(!API)return;
+  try{
+    const c=await API.viewer.getCamera();
+    if(!c)return;
+    const pos=trimbleToThree(c.position||c.eye||c.cameraPosition);
+    const tgt=trimbleToThree(c.target||c.lookAt||c.targetPosition);
+    const up=trimbleToThree(c.up||{x:0,y:0,z:1});
+    if(pos.lengthSq()>0)camera.position.copy(pos);
+    if(tgt.lengthSq()>0)controls.target.copy(tgt);
+    if(up.lengthSq()>0)camera.up.copy(up.normalize());
+    if(Number.isFinite(Number(c.fov)))camera.fov=Number(c.fov);
+    camera.updateProjectionMatrix();controls.update();
+    status('Trimble-Kamera übernommen.','ok');
+  }catch(e){status('Kamera konnte nicht übernommen werden: '+(e.message||e),'warn')}
+}
+function applySectionPlanes(){
+  const planes=[];
+  if(sectionsEnabled){
+    for(const s of trimbleSectionPlanes){
+      const n=trimbleToThree(s.direction||s.normal);
+      const p=trimbleToThree(s.position||s.point);
+      if(n.lengthSq()===0)continue;
+      n.normalize();
+      planes.push(new THREE.Plane(n,-n.dot(p)));
+    }
+  }
+  scene.traverse(o=>{if(o.isMesh&&o.material){for(const m of(Array.isArray(o.material)?o.material:[o.material])){m.clippingPlanes=planes;m.clipShadows=true;m.needsUpdate=true}}});
+}
+async function syncTrimbleSections(){
+  if(!API)return;
+  try{trimbleSectionPlanes=await API.viewer.getSectionPlanes()||[];applySectionPlanes();updateStats()}
+  catch(_){trimbleSectionPlanes=[];updateStats()}
+}
+async function syncTrimblePointClouds(){
+  if(!API)return;
+  try{trimblePointClouds=await API.viewer.getPointClouds()||[];updateStats()}
+  catch(_){trimblePointClouds=[];updateStats()}
+}
+async function syncTrimbleSceneState(){
+  if(!API)return;
+  await Promise.all([syncTrimbleSections(),syncTrimblePointClouds()]);
+  await syncTrimbleCamera();
+  const pc=trimblePointClouds.length,sp=trimbleSectionPlanes.length;
+  status('Trimble-Szene synchronisiert: '+pc+' Punktwolke(n), '+sp+' Schnitt(e), Kamera übernommen.','ok');
+}
 async function loadFromTrimble(){
   if(!API||busy)return;setBusy(true);
   try{
@@ -309,7 +366,7 @@ async function loadFromTrimble(){
       el('diag').classList.add('show');
       throw new Error('Keine gültige IFC-Rohdatei aus Trimble erhalten. '+(failures.length?failures.join(' | ')+' ':'')+'Nutze bitte „IFC lokal öffnen“.')
     }
-    el('hudSource').textContent='Trimble Connect';await renderSources(sources)
+    el('hudSource').textContent='Trimble Connect';await renderSources(sources);await syncTrimbleSceneState()
   }catch(e){status('IFC konnte nicht aus Trimble geladen werden: '+(e.message||e),'bad')}
   finally{setBusy(false)}
 }
@@ -373,8 +430,8 @@ function openLarge(){
 }
 async function connectTrimble(){
   try{
-    API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{if(event==='viewer.onSelectionChanged')trimbleSelection(args)},30000);
-    status('Trimble verbunden. Klicke „IFC aus Trimble laden“.','ok')
+    API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{if(event==='viewer.onSelectionChanged')trimbleSelection(args);if(event==='viewer.onCameraChanged')syncTrimbleCamera();if(event==='viewer.onSectionPlaneChanged')syncTrimbleSections();if(event==='viewer.onModelStateChanged')setTimeout(syncTrimbleSceneState,250)},30000);
+    status('Trimble verbunden. Klicke „Trimble-Szene synchronisieren“.','ok');await syncTrimbleSceneState()
   }catch(e){status('Keine Trimble-Verbindung. Du kannst „IFC lokal öffnen“ verwenden.','warn')}
 }
 function setupStandalone(){
@@ -383,11 +440,11 @@ function setupStandalone(){
   if(window.opener)window.opener.postMessage({type:'R01_READY',session},location.origin)
 }
 
-el('trimbleBtn').onclick=loadFromTrimble;
+el('trimbleBtn').onclick=async()=>{await loadFromTrimble();if(API)await syncTrimbleSceneState()};
 el('localBtn').onclick=()=>el('fileInput').click();
 el('fileInput').onchange=e=>loadLocalFile(e.target.files&&e.target.files[0]);
 el('largeBtn').onclick=openLarge;
-el('diagBtn').onclick=()=>el('diag').classList.toggle('show');
+el('cameraBtn').onclick=syncTrimbleCamera;el('sectionsBtn').onclick=()=>{sectionsEnabled=!sectionsEnabled;el('sectionsBtn').classList.toggle('active',sectionsEnabled);applySectionPlanes()};el('pointsBtn').onclick=()=>{pointsEnabled=!pointsEnabled;el('pointsBtn').classList.toggle('active',pointsEnabled);status(pointsEnabled?'Punktwolken-Synchronisation aktiv.':'Punktwolken-Synchronisation pausiert.','ok')};el('diagBtn').onclick=()=>el('diag').classList.toggle('show');
 el('realBtn').onclick=()=>setColorMode('real');
 el('ifcBtn').onclick=()=>setColorMode('ifc');
 el('dayBtn').onclick=()=>setLighting('day');
