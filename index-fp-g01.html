@@ -129,6 +129,11 @@ function svgToWorld(evt){
  return{x:PX.xmin+q.x,y:PX.ymax-q.y};
 }
 function worldToSvg(x,y){return{x:x-PX.xmin,y:PX.ymax-y}}
+function boxScaleToMm(b){
+ const vals=[b?.min?.x,b?.min?.y,b?.min?.z,b?.max?.x,b?.max?.y,b?.max?.z].map(Number).filter(Number.isFinite);
+ const maxAbs=Math.max(0,...vals.map(Math.abs));
+ return maxAbs<1000?1000:1;
+}
 function renderPlan(){
  const svg=el('planSvg'); if(!svg)return;
  let out='<rect class="planFloor" x="1000" y="1350" width="29650" height="17650"/>';
@@ -136,8 +141,8 @@ function renderPlan(){
  for(let y=0;y<=18000;y+=1000){const s=worldToSvg(0,y);out+='<line class="'+(y%5000===0?'planGridMajor':'planGrid')+'" x1="1000" y1="'+s.y+'" x2="31000" y2="'+s.y+'"/>'}
  for(const m of MACHINES){
    const mm=machineMap.get(m.id); if(!mm||!mm.box)continue;
-   const p=plan[m.id],b=mm.box;
-   const minx=b.min.x+p.dx,maxx=b.max.x+p.dx,miny=b.min.y+p.dy,maxy=b.max.y+p.dy;
+   const p=plan[m.id],b=mm.box,s=boxScaleToMm(b);
+   const minx=b.min.x*s+p.dx,maxx=b.max.x*s+p.dx,miny=b.min.y*s+p.dy,maxy=b.max.y*s+p.dy;
    const cwx=(minx+maxx)/2,cwy=(miny+maxy)/2,sc=worldToSvg(cwx,cwy);
    const x=minx-PX.xmin,y=PX.ymax-maxy,w=maxx-minx,h=maxy-miny;
    const cls=['planMachine'];if(selected.has(m.id))cls.push('selected');if(changed(p))cls.push('changed');if(dragState&&dragState.ids.includes(m.id))cls.push('dragging');
@@ -167,7 +172,7 @@ async function discover(){
   try{const rids=await API.viewer.convertToObjectRuntimeIds(mdl.id,MACHINES.map(m=>m.guid));let hits=0;rids.forEach((rid,i)=>{if(rid!==undefined&&rid!==null){machineMap.set(MACHINES[i].id,{modelId:mdl.id,runtimeId:rid,guid:MACHINES[i].guid});hits++}});if(hits){modelId=mdl.id;log('Modell '+(mdl.name||mdl.id)+': '+hits+' Maschinen erkannt');if(hits===MACHINES.length)break}}
   catch(e){}
  }
- for(const m of MACHINES){const mm=machineMap.get(m.id);if(!mm)continue;try{const b=(await API.viewer.getObjectBoundingBoxes(mm.modelId,[mm.runtimeId]))?.[0]?.boundingBox;if(b)mm.box=b}catch(e){log('BoundingBox '+m.id+' nicht lesbar: '+e.message)}}
+ for(const m of MACHINES){const mm=machineMap.get(m.id);if(!mm)continue;try{const b=(await API.viewer.getObjectBoundingBoxes(mm.modelId,[mm.runtimeId]))?.[0]?.boundingBox;if(b){mm.box=b;log('BoundingBox '+m.id+' erkannt · Faktor '+boxScaleToMm(b)+' mm je Viewer-Einheit')}}catch(e){log('BoundingBox '+m.id+' nicht lesbar: '+e.message)}}
  selected=new Set(MACHINES.filter(m=>machineMap.has(m.id)).map(m=>m.id));render();
  if(machineMap.size===6)notice('Alle <b>6 Maschinen</b> in einer IFC erkannt. Mehrfachplanung ist bereit.');else notice(machineMap.size+' von 6 Maschinen erkannt. Bitte pruefen, ob die richtige Demo-IFC geladen ist.','warn');
 }
@@ -212,11 +217,13 @@ async function clearPreview(){if(previewIds.length){try{await API.markup.removeM
 async function preview(){
  await clearPreview();const lines=[],texts=[];let count=0;
  for(const m of MACHINES){const mm=machineMap.get(m.id),p=plan[m.id];if(!mm||!changed(p)||!mm.box)continue;count++;await API.viewer.setObjectState({modelObjectIds:[{modelId:mm.modelId,objectRuntimeIds:[mm.runtimeId]}]},{visible:false});
-  const b=mm.box,min=b.min,max=b.max,cx=(min.x+max.x)/2+p.dx,cy=(min.y+max.y)/2+p.dy,cz0=min.z+p.dz,cz1=max.z+p.dz,a=rad(p.rot);
-  const base=[[min.x+p.dx,min.y+p.dy],[max.x+p.dx,min.y+p.dy],[max.x+p.dx,max.y+p.dy],[min.x+p.dx,max.y+p.dy]].map(q=>rotPoint(q[0],q[1],cx,cy,a));
+  const b=mm.box,min=b.min,max=b.max,s=boxScaleToMm(b),dx=p.dx/s,dy=p.dy/s,dz=p.dz/s;
+  const cx=(min.x+max.x)/2+dx,cy=(min.y+max.y)/2+dy,cz0=min.z+dz,cz1=max.z+dz,a=rad(p.rot);
+  const base=[[min.x+dx,min.y+dy],[max.x+dx,min.y+dy],[max.x+dx,max.y+dy],[min.x+dx,max.y+dy]].map(q=>rotPoint(q[0],q[1],cx,cy,a));
   const top=base.map(q=>[q[0],q[1]]);const color={r:3,g:158,b:210,a:255};
   for(let i=0;i<4;i++){const j=(i+1)%4;lines.push({start:pt(base[i][0],base[i][1],cz0),end:pt(base[j][0],base[j][1],cz0),color});lines.push({start:pt(top[i][0],top[i][1],cz1),end:pt(top[j][0],top[j][1],cz1),color});lines.push({start:pt(base[i][0],base[i][1],cz0),end:pt(top[i][0],top[i][1],cz1),color})}
-  texts.push({start:pt(cx,cy,cz1+350),end:pt(cx+1,cy+1,cz1+350),text:m.name+' | dX '+fmt(p.dx)+' | dY '+fmt(p.dy)+' | R '+fmt(p.rot)+'°',color});
+  const labelLift=350/s;
+  texts.push({start:pt(cx,cy,cz1+labelLift),end:pt(cx+1/s,cy+1/s,cz1+labelLift),text:m.name+' | dX '+fmt(p.dx)+' | dY '+fmt(p.dy)+' | R '+fmt(p.rot)+'°',color});
  }
  try{if(lines.length){const added=await API.markup.addLineMarkups(lines);previewIds.push(...(added||[]).map(x=>x.id).filter(x=>x!==undefined));}if(texts.length){const added=await API.markup.addTextMarkup(texts);previewIds.push(...(added||[]).map(x=>x.id).filter(x=>x!==undefined));}previewOn=true;el('previewN').textContent=String(count);log('Vorschau: '+count+' veraenderte Maschine(n), '+lines.length+' Linien');notice('Vorschau aktiv: Originale der veraenderten Maschinen sind ausgeblendet; die blauen 3D-Huellen zeigen die geplante Lage.','warn')}
  catch(e){notice('Vorschau konnte nicht aufgebaut werden: '+e.message,'bad');log('Preview FEHLER: '+e.message)}
