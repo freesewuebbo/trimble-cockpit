@@ -38,7 +38,7 @@ button:hover{border-color:var(--blue);color:var(--blue)}button.primary{backgroun
   <div class="brand"><h1>LEANNOVA Realistic View</h1><span class="tag">R01 · SCENE SYNC</span></div>
   <div class="sub">Trimble-Szene synchronisieren · Kamera · Schnitte · Punktwolken · echte IFC-Geometrie</div>
   <div class="toolbar">
-    <button id="trimbleBtn" class="primary">Trimble-Szene synchronisieren</button>
+    <button id="permissionBtn">Trimble-Zugriff freigeben</button><button id="trimbleBtn" class="primary">Trimble-Szene synchronisieren</button>
     <button id="localBtn" style="display:none">IFC lokal öffnen</button>
     <button id="largeBtn">Großansicht ↗</button>
     <button id="cameraBtn">Kamera übernehmen</button><button id="sectionsBtn" class="active">Schnitte</button><button id="pointsBtn" class="active">Punktwolken</button><button id="diagBtn">Diagnose</button>
@@ -91,7 +91,7 @@ const params=new URLSearchParams(location.search);
 const standalone=params.get('standalone')==='1';
 const session=params.get('session')||'';
 
-let API=null,ifcApi=null,busy=false,colorMode='real',shadowOn=true;
+let API=null,ifcApi=null,busy=false,colorMode='real',shadowOn=true,permissionGranted=false;
 let root=null,records=[],rawSources=[],elementCount=0,triangleCount=0,currentDiag=null,selected=[],trimblePointClouds=[],trimbleSectionPlanes=[],sectionsEnabled=true,pointsEnabled=true;
 const elementMap=new Map();
 
@@ -343,12 +343,35 @@ async function syncTrimblePointClouds(){
     }
   }catch(_){trimblePointClouds=[];updateStats()}
 }
+
+async function requestTrimblePermission(){
+  if(!API)return false;
+  try{
+    status('Trimble-Dateizugriff wird angefordert …','warn');
+    const result=await API.extension.requestPermission('accesstoken');
+    if(result==='denied'){
+      permissionGranted=false;
+      status('Trimble-Zugriff wurde abgelehnt. Bitte in den Extension-Einstellungen zurücksetzen.','bad');
+      return false;
+    }
+    if(result==='pending'){
+      status('Bitte die Trimble-Abfrage zur Freigabe bestätigen …','warn');
+      return false;
+    }
+    permissionGranted=!!result;
+    status(permissionGranted?'Trimble-Zugriff ist freigegeben. Jetzt „Trimble-Szene synchronisieren“ anklicken.':'Freigabe noch nicht bestätigt.','ok');
+    return permissionGranted;
+  }catch(e){
+    status('Trimble-Freigabe konnte nicht angefordert werden: '+(e.message||e),'bad');
+    return false;
+  }
+}
 async function syncTrimbleSceneState(){
   if(!API)return;
   await Promise.all([syncTrimbleSections(),syncTrimblePointClouds()]);
   await syncTrimbleCamera();
   const pc=trimblePointClouds.length,sp=trimbleSectionPlanes.length;
-  status('Trimble-Szene synchronisiert: '+pc+' Punktwolke(n), '+sp+' Schnitt(e), Kamera übernommen.','ok');
+  status('Trimble-Szenenstatus übernommen: '+pc+' Punktwolke(n), '+sp+' Schnitt(e), Kamera übernommen. IFC-Geometrie ist noch nicht bestätigt.','warn');
 }
 async function loadFromTrimble(){
   if(!API||busy)return;setBusy(true);
@@ -436,7 +459,7 @@ function openLarge(){
 }
 async function connectTrimble(){
   try{
-    API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{if(event==='viewer.onSelectionChanged')trimbleSelection(args);if(event==='viewer.onCameraChanged')syncTrimbleCamera();if(event==='viewer.onSectionPlaneChanged')syncTrimbleSections();if(event==='viewer.onModelStateChanged')setTimeout(syncTrimbleSceneState,250)},30000);
+    API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{if(event==='extension.accessToken'){permissionGranted=!!(args&&args.data&&args.data!=='denied'&&args.data!=='pending');status(permissionGranted?'Trimble-Zugriff freigegeben. Jetzt Szene synchronisieren.':'Trimble-Freigabe ausstehend.','ok')}if(event==='viewer.onSelectionChanged')trimbleSelection(args);if(event==='viewer.onCameraChanged')syncTrimbleCamera();if(event==='viewer.onSectionPlaneChanged')syncTrimbleSections();if(event==='viewer.onModelStateChanged')setTimeout(syncTrimbleSceneState,250)},30000);
     status('Trimble verbunden. Klicke „Trimble-Szene synchronisieren“.','ok');await syncTrimbleSceneState()
   }catch(e){status('Keine Trimble-Verbindung. Du kannst „IFC lokal öffnen“ verwenden.','warn')}
 }
@@ -446,7 +469,7 @@ function setupStandalone(){
   if(window.opener)window.opener.postMessage({type:'R01_READY',session},location.origin)
 }
 
-el('trimbleBtn').onclick=async()=>{await loadFromTrimble();if(API)await syncTrimbleSceneState()};
+el('permissionBtn').onclick=requestTrimblePermission;el('trimbleBtn').onclick=async()=>{if(!permissionGranted){const ok=await requestTrimblePermission();if(!ok)return;}await loadFromTrimble();if(API)await syncTrimbleSceneState()};
 el('localBtn').onclick=()=>el('fileInput').click();
 el('fileInput').onchange=e=>loadLocalFile(e.target.files&&e.target.files[0]);
 el('largeBtn').onclick=openLarge;
