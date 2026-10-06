@@ -1,7 +1,7 @@
 {
-  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-fp-r01.html?build=20261006-r01b",
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-fp-r01.html?build=20261006-r01c",
   "title": "LEANNOVA Realistic View R01",
-  "description": "Generische R01-Visualisierung fuer aktuell geladene IFC/BIM-Modelle: automatische Objektklassifizierung, Materialien, Licht, Schatten und Auswahl-Synchronisation mit Trimble Connect.",
+  "description": "R01 rendert die echte Geometrie geladener IFC-Dateien aus Trimble Connect mit PBR-Materialien, Licht, Schatten, Auswahl-Synchronisation und separater Grossansicht.",
   "extensionType": ["3dviewer"],
   "type": "panel"
 }
