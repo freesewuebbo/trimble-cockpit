@@ -112,7 +112,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
       <button class="labelModeBtn" data-label-mode="none">Aus</button>
       <button class="labelModeBtn active" data-label-mode="gauge">Name + Tacho</button>
     </div>
-    <div id="labelHint" class="labelHint">Name + Tacho: zoomabhängig – nah mit Wert, mittig kompakt, in der Hallenübersicht nur die ausgewählte Maschine.</div>
+    <div id="labelHint" class="labelHint">Name + Tacho: neutral gestaltet – Zustandsfarbe bleibt am 3D-Objekt. Nah mit Live-Wert, mittig kompakt, in der Übersicht nur die Auswahl.</div>
   </div>
 </div>
 
@@ -382,6 +382,7 @@ function shortMachineName(m){
  const base=n.split(" – ")[0].split(" - ")[0];
  return base.length>12?base.slice(0,12):base;
 }
+
 function labelValueForMachine(m,mode){
  const x=liveMetricsForMachine(m);
  if(mode==="temperature")return x.temp.toFixed(1)+" °C";
@@ -389,11 +390,27 @@ function labelValueForMachine(m,mode){
  if(mode==="utilization")return Math.round(x.util)+" %";
  return x.status;
 }
+function modeGlyph(mode){
+ return ({temperature:"♨",status:"⚙",quality:"✓",utilization:"↗"})[mode]||"•";
+}
+function modeShort(mode){
+ return ({temperature:"TEMP",status:"STATUS",quality:"QUAL",utilization:"LAST"})[mode]||"LIVE";
+}
 const LABEL_TAG="\u2063\u2063";
 function miniGauge(stage){
+ const n=Math.max(1,Math.min(5,stage));
+ return "▰".repeat(n)+"▱".repeat(5-n);
+}
+function gaugeDot(stage){
  return ["○","◔","◑","◕","●"][Math.max(1,Math.min(5,stage))-1];
 }
-function labelColor(m,mode){return colorForMachine(m,mode)||VIEW_COLORS.lightGreen}
+function labelColor(m){
+ // Label color is deliberately independent from machine status color.
+ // Selected machine is LEANNOVA blue, all others are neutral graphite.
+ return m.object_id===currentObjectId
+   ? {r:4,g:120,b:160,a:255}
+   : {r:46,g:58,b:64,a:255};
+}
 async function clearLegacyMachineIcons(){
  if(!API)return;
  try{
@@ -402,9 +419,6 @@ async function clearLegacyMachineIcons(){
    if(ours.length)await API.viewer.removeIcon(ours);
  }catch(e){}
 }
-
-
-
 
 function sceneStatsFromPositions(){
  const pts=[...labelPositionMap.values()];
@@ -436,11 +450,17 @@ function zoomProfileFromCamera(camera){
  }
  return "near";
 }
+
 function labelTextForProfile(m,mode,stage,profile){
- const name=shortMachineName(m),gauge=miniGauge(stage),value=labelValueForMachine(m,mode);
- if(profile==="far")return name+"  "+gauge+"  "+value;
- if(profile==="medium")return name+"  "+gauge;
- return name+"  "+gauge+"  "+value;
+ const name=shortMachineName(m),value=labelValueForMachine(m,mode),glyph=modeGlyph(mode);
+ const selected=m.object_id===currentObjectId;
+ if(profile==="far"){
+   return (selected?"▶ ":"▣ ")+name+"  │  "+glyph+" "+value;
+ }
+ if(profile==="medium"){
+   return (selected?"▶ ":"▣ ")+name+"  "+gaugeDot(stage);
+ }
+ return (selected?"▶ ":"▣ ")+name+"  │  "+modeShort(mode)+" "+value+"  │  "+miniGauge(stage);
 }
 function zoomProfileLabel(profile){
  return profile==="far"?"Übersicht":profile==="medium"?"Kompakt":"Detail";
@@ -563,7 +583,7 @@ async function updateMachineLabels(forcePositions=false,profileAlreadySet=false)
 
      markups.push({
        text,
-       color:labelColor(m,mode),
+       color:labelColor(m),
        start:{
          type:"point",
          modelId:map.modelId,
@@ -591,7 +611,7 @@ async function updateMachineLabels(forcePositions=false,profileAlreadySet=false)
    }
 
    const names={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung"};
-   el("labelHint").textContent=zoomProfileLabel(labelZoomProfile)+" · "+markups.length+" Anzeige(n) · "+names[mode]+" · Live 3 s.";
+   el("labelHint").textContent=zoomProfileLabel(labelZoomProfile)+" · "+markups.length+" Anzeige(n) · neutral beschriftet · "+names[mode]+" · Live 3 s.";
  }catch(e){
    el("labelHint").textContent="3D-Anzeigen konnten nicht erzeugt werden: "+((e&&e.message)||String(e));
  }finally{
