@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>LEANNOVA Realistic View R01</title>
+<style>
+:root{--blue:#0478A0;--cyan:#039ED2;--navy:#073A5A;--bg:#10171b;--panel:#ffffff;--line:#d9e0e4;--text:#172126;--muted:#66757d;--ok:#2e7d32;--warn:#a86d08}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;font-family:"Segoe UI",Arial,sans-serif;background:#edf1f3;color:var(--text);overflow:hidden}
+.app{height:100%;display:flex;flex-direction:column;border-left:4px solid var(--blue);background:#fff}
+header{flex:0 0 auto;padding:10px 12px 9px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#f8fbfc)}
+.brand{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.brand h1{font-size:16px;line-height:1.1;margin:0;font-weight:800}.tag{font-size:8px;font-weight:800;color:#fff;background:var(--blue);padding:4px 6px;letter-spacing:.08em}
+.sub{font-size:9px;color:var(--muted);margin-top:4px}
+.toolbar{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+button{font:inherit;border:1px solid #b8c3c8;background:#fff;color:#34434a;padding:6px 7px;font-size:8px;font-weight:750;cursor:pointer}
+button:hover{border-color:var(--blue);color:var(--blue)}button.primary{background:var(--blue);border-color:var(--blue);color:#fff}button.active{background:#e8f6fb;border-color:var(--cyan);color:var(--blue)}button:disabled{opacity:.4;cursor:default}
+#status{font-size:8px;line-height:1.4;color:var(--muted);padding:6px 12px;border-bottom:1px solid var(--line);background:#fbfcfd}
+#status.ok{color:var(--ok)}#status.warn{color:var(--warn)}
+.stage{position:relative;flex:1 1 auto;min-height:220px;background:linear-gradient(180deg,#dfe7eb 0%,#f0f3f4 56%,#cad1d4 100%);overflow:hidden}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hud{position:absolute;left:8px;top:8px;display:flex;gap:4px;flex-wrap:wrap;pointer-events:none}
+.pill{background:rgba(255,255,255,.86);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.6);box-shadow:0 2px 8px rgba(0,0,0,.08);padding:4px 6px;font-size:7px;font-weight:800;color:#3e4d54}
+.help{position:absolute;left:8px;bottom:8px;right:8px;background:rgba(10,20,25,.70);color:#fff;padding:6px 8px;font-size:7px;line-height:1.45;pointer-events:none}
+.machinebar{flex:0 0 auto;border-top:1px solid var(--line);background:#fff;padding:7px 8px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;max-height:106px;overflow:auto}
+.machinebtn{padding:6px 5px;border:1px solid var(--line);background:#fff;text-align:left;min-width:0}
+.machinebtn .name{font-size:8px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.machinebtn .meta{font-size:6.5px;color:var(--muted);margin-top:2px}.machinebtn.selected{border-color:var(--cyan);box-shadow:inset 3px 0 0 var(--cyan);background:#f2fbfe}
+@media(max-width:430px){.machinebar{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar button{padding:6px}.brand h1{font-size:14px}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="brand"><h1>LEANNOVA Realistic View</h1><span class="tag">R01</span></div>
+  <div class="sub">Fotorealistischere Fabrikansicht · Demo-Halle · Trimble-synchronisiert</div>
+  <div class="toolbar">
+    <button id="syncBtn" class="primary">Trimble synchronisieren</button>
+    <button id="realBtn" class="active">Realistisch</button>
+    <button id="techBtn">Technisch</button>
+    <button id="dayBtn" class="active">Tag</button>
+    <button id="hallBtn">Hallenlicht</button>
+    <button id="eveningBtn">Abend</button>
+    <button id="shadowBtn" class="active">Schatten</button>
+    <button id="homeBtn">Kamera zurück</button>
+  </div>
+</header>
+<div id="status" class="warn">R01 startet mit der Demo-Halle. Verbindung zu Trimble Connect wird aufgebaut …</div>
+<div class="stage">
+  <canvas id="view"></canvas>
+  <div class="hud"><span class="pill">PBR-Materialien</span><span class="pill">Echtzeitschatten</span><span class="pill">6 Maschinen</span></div>
+  <div class="help"><b>Maus:</b> links drehen · rechts verschieben · Mausrad zoomen · Maschine anklicken = Auswahl in R01 und Trimble</div>
+</div>
+<div id="machinebar" class="machinebar"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const MACHINE_DEFS=[
+  {id:'M-BAZ-01',guid:'2W4hgQTDzBURFXHBZOYTW0',name:'BAZ 01',kind:'baz',pos:[5,5],size:[4.4,3.2,3.2]},
+  {id:'M-LAS-01',guid:'0wfx7VSoD7teoctgt50N8K',name:'Laser 01',kind:'laser',pos:[13,5],size:[5.2,3.0,2.5]},
+  {id:'M-DRH-01',guid:'1Pxcfkx097MRVV0XGxDxCt',name:'Drehmaschine 01',kind:'lathe',pos:[22,5],size:[4.6,2.5,2.7]},
+  {id:'M-BAZ-02',guid:'3N8Bks045EjA7dARuN7fGI',name:'BAZ 02',kind:'baz',pos:[5.5,13],size:[4.6,3.3,3.3]},
+  {id:'M-MES-01',guid:'1D$4Xa2HvFowzC1hB1nbLk',name:'Messmaschine 01',kind:'measure',pos:[14.5,13],size:[4.2,3.3,3.0]},
+  {id:'M-MON-01',guid:'1jsTiZBKD0Q9mN_8OaVtv8',name:'Montageplatz 01',kind:'assembly',pos:[23,13],size:[5.0,3.3,2.3]}
+];
+
+let API=null;
+let trimbleConnected=false;
+let selectedId=null;
+let realistic=true;
+let shadowEnabled=true;
+let lightingMode='day';
+const runtimeMap=new Map();
+const visualMap=new Map();
+
+const canvas=document.getElementById('view');
+const statusEl=document.getElementById('status');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0xe8eef1);
+scene.fog=new THREE.Fog(0xe8eef1,32,62);
+
+const camera=new THREE.PerspectiveCamera(42,1,0.1,120);
+camera.position.set(24,18,28);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,1.6,0);
+controls.enableDamping=true;
+controls.dampingFactor=.07;
+controls.minDistance=6;
+controls.maxDistance=70;
+controls.maxPolarAngle=Math.PI*.49;
+
+const materials={
+  floor:new THREE.MeshPhysicalMaterial({color:0xbfc4c5,roughness:.62,metalness:.05,clearcoat:.18,clearcoatRoughness:.55}),
+  steel:new THREE.MeshStandardMaterial({color:0x5f676b,roughness:.34,metalness:.72}),
+  steelDark:new THREE.MeshStandardMaterial({color:0x353b3f,roughness:.3,metalness:.76}),
+  wall:new THREE.MeshStandardMaterial({color:0xe3e5e5,roughness:.78,metalness:.05,side:THREE.DoubleSide}),
+  glass:new THREE.MeshPhysicalMaterial({color:0x15333f,roughness:.08,metalness:.1,transmission:.12,transparent:true,opacity:.52}),
+  accent:new THREE.MeshStandardMaterial({color:0x039ed2,roughness:.28,metalness:.46}),
+  safety:new THREE.MeshStandardMaterial({color:0xf0bf25,roughness:.45,metalness:.15}),
+  rubber:new THREE.MeshStandardMaterial({color:0x171a1c,roughness:.86,metalness:.02}),
+  machine:new THREE.MeshPhysicalMaterial({color:0xd9ddde,roughness:.31,metalness:.48,clearcoat:.16,clearcoatRoughness:.34}),
+  machineDark:new THREE.MeshStandardMaterial({color:0x61696d,roughness:.32,metalness:.62}),
+  table:new THREE.MeshStandardMaterial({color:0x9ca3a5,roughness:.42,metalness:.58})
+};
+
+const dynamicLights=[];
+function meshBox(w,h,d,mat,x,y,z,parent,cast=true){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(Math.max(.03,w),Math.max(.03,h),Math.max(.03,d)),mat.clone?mat.clone():mat);
+  m.position.set(x,y,z);m.castShadow=cast;m.receiveShadow=true;parent.add(m);return m;
+}
+function frameBox(w,h,d,t,mat,parent,y){
+  meshBox(w,t,d,mat,0,y+h/2-t/2,0,parent);
+  meshBox(t,h-t,d,mat,-w/2+t/2,y+(h-t)/2,0,parent);
+  meshBox(t,h-t,d,mat,w/2-t/2,y+(h-t)/2,0,parent);
+}
+
+const hall=new THREE.Group();scene.add(hall);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(36,24),materials.floor);
+floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;hall.add(floor);
+
+const grid=new THREE.GridHelper(36,36,0x9aa7ad,0xd3dade);grid.position.y=.012;grid.material.opacity=.22;grid.material.transparent=true;hall.add(grid);
+
+for(const x of [-15,-5,5,15]){
+  for(const z of [-9,9]) meshBox(.32,6.4,.32,materials.steel,x,3.2,z,hall);
+  meshBox(.34,.34,18.2,materials.steel,x,6.2,0,hall);
+}
+for(const z of [-9,9]) meshBox(30.3,.32,.32,materials.steel,0,6.2,z,hall);
+for(const x of [-12,-6,0,6,12]) meshBox(.18,.18,18,materials.steelDark,x,6.0,0,hall,false);
+
+const backWall=meshBox(30,5.9,.12,materials.wall,0,3,-9.1,hall,false);
+const sideWall=meshBox(.12,5.9,18,materials.wall,15.1,3,0,hall,false);
+backWall.material.opacity=.93;backWall.material.transparent=true;
+sideWall.material.opacity=.84;sideWall.material.transparent=true;
+for(const x of [-11,-7,-3,1,5,9]){
+  const w=meshBox(2.7,1.35,.05,materials.glass,x,3.8,-9.18,hall,false);
+  w.material.opacity=.42;
+}
+for(const x of [-10,-5,0,5,10]){
+  const lum=meshBox(3.3,.05,.55,new THREE.MeshStandardMaterial({color:0xf9fbff,emissive:0xeaf5ff,emissiveIntensity:2.2}),x,5.86,0,hall,false);
+  lum.receiveShadow=false;
+}
+
+const hemi=new THREE.HemisphereLight(0xdceeff,0x677078,1.2);scene.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff3dc,2.4);sun.position.set(-13,22,15);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-24;sun.shadow.camera.right=24;sun.shadow.camera.top=20;sun.shadow.camera.bottom=-20;sun.shadow.camera.near=1;sun.shadow.camera.far=60;sun.shadow.bias=-.00025;scene.add(sun);
+for(const x of [-10,-3.4,3.4,10]){
+  const s=new THREE.SpotLight(0xeaf5ff,75,18,Math.PI/3,.55,1.2);
+  s.position.set(x,5.8,0);s.target.position.set(x,0,0);s.castShadow=true;s.shadow.mapSize.set(512,512);scene.add(s,s.target);dynamicLights.push(s);
+}
+
+function applyMachineTag(obj,id){
+  obj.userData.machineId=id;
+  obj.traverse(c=>{
+    if(c.isMesh){
+      c.userData.machineId=id;
+      if(c.material && c.material.emissive) c.userData.baseEmissive=c.material.emissive.getHex();
+    }
+  });
+}
+function addFeet(g,w,d){
+  for(const x of [-w*.38,w*.38])for(const z of [-d*.36,d*.36])meshBox(.16,.12,.16,materials.rubber,x,.06,z,g);
+}
+function buildMachine(def,size){
+  const w=Math.max(1.8,size[0]),d=Math.max(1.4,size[1]),h=Math.max(1.5,size[2]);
+  const g=new THREE.Group();
+  addFeet(g,w,d);
+  meshBox(w*.94,.16,d*.92,materials.machineDark,0,.18,0,g);
+  if(def.kind==='assembly'){
+    meshBox(w*.92,.12,d*.72,materials.table,0,1.05,0,g);
+    for(const x of [-w*.39,w*.39])for(const z of [-d*.28,d*.28])meshBox(.08,.9,.08,materials.steelDark,x,.58,z,g);
+    meshBox(w*.86,.06,.08,materials.accent,0,1.14,-d*.31,g);
+    meshBox(.10,1.3,.10,materials.steelDark,-w*.38,1.75,-d*.28,g);
+    meshBox(.10,1.3,.10,materials.steelDark,w*.38,1.75,-d*.28,g);
+    meshBox(w*.76,.10,.10,materials.steelDark,0,2.36,-d*.28,g);
+    meshBox(w*.70,.05,.34,new THREE.MeshStandardMaterial({color:0xf9fbff,emissive:0xeaf5ff,emissiveIntensity:1.8}),0,2.25,-d*.28,g,false);
+  } else if(def.kind==='measure'){
+    meshBox(w*.78,.26,d*.72,materials.machine,0,.37,0,g);
+    meshBox(w*.16,h*.68,d*.18,materials.machineDark,-w*.34,h*.48,0,g);
+    meshBox(w*.16,h*.68,d*.18,materials.machineDark,w*.34,h*.48,0,g);
+    meshBox(w*.82,.28,d*.22,materials.machine,h*.0,h*.82,0,g);
+    meshBox(w*.58,.05,d*.52,materials.glass,0,.58,0,g,false);
+    meshBox(.07,h*.32,.07,materials.accent,0,h*.58,0,g);
+  } else if(def.kind==='laser'){
+    meshBox(w*.96,h*.52,d*.92,materials.machine,0,h*.31,0,g);
+    meshBox(w*.60,h*.18,.08,materials.glass,0,h*.46,d*.47,g,false);
+    meshBox(w*.82,.07,.05,materials.accent,0,h*.17,d*.49,g);
+    meshBox(.30,h*.58,.34,materials.machineDark,w*.48,h*.36,-d*.25,g);
+    meshBox(.22,.18,.08,materials.glass,w*.48,h*.55,-d*.02,g,false);
+  } else if(def.kind==='lathe'){
+    meshBox(w*.94,h*.72,d*.86,materials.machine,0,h*.40,0,g);
+    meshBox(w*.55,h*.28,.07,materials.glass,-w*.08,h*.58,d*.45,g,false);
+    meshBox(.05,h*.66,d*.72,materials.accent,-w*.36,h*.42,0,g);
+    meshBox(.32,h*.60,.32,materials.machineDark,w*.50,h*.38,d*.18,g);
+    meshBox(.22,.16,.07,materials.glass,w*.50,h*.56,d*.34,g,false);
+  } else {
+    meshBox(w*.94,h*.80,d*.90,materials.machine,0,h*.45,0,g);
+    meshBox(w*.50,h*.36,.07,materials.glass,-w*.04,h*.60,d*.47,g,false);
+    meshBox(.08,h*.78,d*.78,materials.accent,-w*.39,h*.45,0,g);
+    meshBox(.32,h*.70,.34,materials.machineDark,w*.50,h*.42,d*.19,g);
+    meshBox(.23,.17,.07,materials.glass,w*.50,h*.62,d*.36,g,false);
+    meshBox(.24,.05,.14,materials.safety,w*.50,h*.46,d*.39,g);
+  }
+  applyMachineTag(g,def.id);
+  return g;
+}
+
+function defaultScene(){
+  MACHINE_DEFS.forEach(def=>{
+    const g=buildMachine(def,def.size);
+    g.position.set(def.pos[0]-15,0,def.pos[1]-9);
+    visualMap.set(def.id,g);scene.add(g);
+  });
+}
+defaultScene();
+
+function rebuildMachine(def,size,pos){
+  const old=visualMap.get(def.id);if(old)scene.remove(old);
+  const g=buildMachine(def,size);g.position.set(pos[0],0,pos[1]);visualMap.set(def.id,g);scene.add(g);
+}
+
+function setLighting(mode){
+  lightingMode=mode;
+  document.getElementById('dayBtn').classList.toggle('active',mode==='day');
+  document.getElementById('hallBtn').classList.toggle('active',mode==='hall');
+  document.getElementById('eveningBtn').classList.toggle('active',mode==='evening');
+  if(mode==='day'){
+    scene.background.set(0xe8eef1);scene.fog.color.set(0xe8eef1);hemi.intensity=1.25;sun.intensity=2.45;dynamicLights.forEach(l=>l.intensity=48);renderer.toneMappingExposure=1.06;
+  }else if(mode==='hall'){
+    scene.background.set(0xcfd7db);scene.fog.color.set(0xcfd7db);hemi.intensity=.65;sun.intensity=.55;dynamicLights.forEach(l=>l.intensity=115);renderer.toneMappingExposure=1.08;
+  }else{
+    scene.background.set(0x31424d);scene.fog.color.set(0x31424d);hemi.intensity=.30;sun.intensity=.25;dynamicLights.forEach(l=>l.intensity=150);renderer.toneMappingExposure=.92;
+  }
+}
+function setRenderMode(isReal){
+  realistic=isReal;
+  document.getElementById('realBtn').classList.toggle('active',isReal);
+  document.getElementById('techBtn').classList.toggle('active',!isReal);
+  grid.visible=!isReal;
+  renderer.toneMappingExposure=isReal?(lightingMode==='evening'?.92:1.06):1.2;
+  visualMap.forEach(g=>g.traverse(c=>{
+    if(!c.isMesh||!c.material)return;
+    c.material.flatShading=!isReal;
+    c.material.needsUpdate=true;
+  }));
+}
+function setShadows(on){
+  shadowEnabled=on;renderer.shadowMap.enabled=on;sun.castShadow=on;dynamicLights.forEach(l=>l.castShadow=on);
+  scene.traverse(o=>{if(o.isMesh)o.castShadow=on && o!==floor});
+  document.getElementById('shadowBtn').classList.toggle('active',on);
+}
+function selectMachine(id,sync){
+  selectedId=id;
+  visualMap.forEach((g,mid)=>g.traverse(c=>{
+    if(!c.isMesh||!c.material||!c.material.emissive)return;
+    const base=c.userData.baseEmissive||0;
+    c.material.emissive.setHex(mid===id?0x063f52:base);
+    c.material.emissiveIntensity=mid===id?.5:1;
+  }));
+  document.querySelectorAll('.machinebtn').forEach(b=>b.classList.toggle('selected',b.dataset.id===id));
+  if(sync && API && runtimeMap.has(id)){
+    const r=runtimeMap.get(id);
+    API.viewer.setSelection({modelObjectIds:[{modelId:r.modelId,objectRuntimeIds:[r.runtimeId]}]},'set').catch(()=>{});
+  }
+}
+function renderMachineBar(){
+  const bar=document.getElementById('machinebar');bar.innerHTML='';
+  MACHINE_DEFS.forEach(def=>{
+    const b=document.createElement('button');b.className='machinebtn';b.dataset.id=def.id;
+    b.innerHTML='<div class="name">'+def.name+'</div><div class="meta">'+(runtimeMap.has(def.id)?'Trimble synchronisiert':'Demo-Geometrie')+'</div>';
+    b.onclick=()=>selectMachine(def.id,true);bar.appendChild(b);
+  });
+}
+renderMachineBar();
+
+function setStatus(text,cls){
+  statusEl.className=cls||'';statusEl.textContent=text;
+}
+async function syncFromTrimble(){
+  if(!API){setStatus('Keine Trimble-Verbindung. R01 zeigt weiterhin die integrierte Demo-Halle.','warn');return}
+  runtimeMap.clear();
+  let found=0;
+  try{
+    const models=await API.viewer.getModels();
+    for(const mdl of (models||[])){
+      let ids;
+      try{ids=await API.viewer.convertToObjectRuntimeIds(mdl.id,MACHINE_DEFS.map(m=>m.guid))}catch(e){continue}
+      for(let i=0;i<MACHINE_DEFS.length;i++){
+        const rid=ids&&ids[i];if(rid===undefined||rid===null)continue;
+        const def=MACHINE_DEFS[i];
+        try{
+          const res=await API.viewer.getObjectBoundingBoxes(mdl.id,[rid]);
+          const bb=res&&res[0]&&res[0].boundingBox;
+          if(!bb)continue;
+          const sx=Math.max(.7,(bb.max.x-bb.min.x)/1000),sz=Math.max(.7,(bb.max.y-bb.min.y)/1000),sy=Math.max(1,(bb.max.z-bb.min.z)/1000);
+          const cx=(bb.min.x+bb.max.x)/2000-15,cz=(bb.min.y+bb.max.y)/2000-9;
+          rebuildMachine(def,[sx,sz,sy],[cx,cz]);
+          runtimeMap.set(def.id,{modelId:mdl.id,runtimeId:rid});found++;
+        }catch(e){}
+      }
+      if(found===MACHINE_DEFS.length)break;
+    }
+    renderMachineBar();
+    if(found===6)setStatus('Trimble verbunden: alle 6 Maschinen erkannt. R01 übernimmt ihre aktuellen Positionen aus dem geladenen Modell.','ok');
+    else if(found>0)setStatus('Trimble verbunden: '+found+' von 6 Demo-Maschinen erkannt. Fehlende Objekte bleiben als R01-Demo-Geometrie sichtbar.','warn');
+    else setStatus('Trimble verbunden, aber die Demo-Maschinen wurden im geladenen Modell nicht erkannt. R01 zeigt die integrierte Demo-Halle.','warn');
+  }catch(e){setStatus('Trimble-Synchronisierung fehlgeschlagen: '+e.message,'warn')}
+}
+async function connectTrimble(){
+  try{
+    API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{
+      if(event==='viewer.onSelectionChanged'){
+        const sel=args&&args.data?args.data:[];
+        for(const [id,r] of runtimeMap){
+          if((sel||[]).some(s=>s.modelId===r.modelId&&(s.objectRuntimeIds||[]).includes(r.runtimeId))){selectMachine(id,false);break}
+        }
+      }
+      if(event==='viewer.onModelStateChanged') setTimeout(syncFromTrimble,300);
+    },30000);
+    trimbleConnected=true;await syncFromTrimble();
+  }catch(e){
+    trimbleConnected=false;
+    setStatus('R01 läuft im Demo-Modus. Öffne die Anwendung in Trimble Connect, um Positionen und Auswahl zu synchronisieren.','warn');
+  }
+}
+connectTrimble();
+
+const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();
+let down={x:0,y:0};
+renderer.domElement.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY}});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(Math.hypot(e.clientX-down.x,e.clientY-down.y)>5)return;
+  const r=renderer.domElement.getBoundingClientRect();
+  pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects([...visualMap.values()],true);
+  if(hits.length){
+    let o=hits[0].object;let id=o.userData.machineId;
+    while(!id&&o.parent){o=o.parent;id=o.userData.machineId}
+    if(id)selectMachine(id,true);
+  }
+});
+
+function homeCamera(){camera.position.set(24,18,28);controls.target.set(0,1.6,0);controls.update()}
+document.getElementById('syncBtn').onclick=syncFromTrimble;
+document.getElementById('realBtn').onclick=()=>setRenderMode(true);
+document.getElementById('techBtn').onclick=()=>setRenderMode(false);
+document.getElementById('dayBtn').onclick=()=>setLighting('day');
+document.getElementById('hallBtn').onclick=()=>setLighting('hall');
+document.getElementById('eveningBtn').onclick=()=>setLighting('evening');
+document.getElementById('shadowBtn').onclick=()=>setShadows(!shadowEnabled);
+document.getElementById('homeBtn').onclick=homeCamera;
+
+function resize(){
+  const rect=canvas.getBoundingClientRect();
+  const w=Math.max(1,Math.floor(rect.width)),h=Math.max(1,Math.floor(rect.height));
+  if(canvas.width!==w*renderer.getPixelRatio()||canvas.height!==h*renderer.getPixelRatio()){
+    renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
+  }
+}
+function animate(){requestAnimationFrame(animate);resize();controls.update();renderer.render(scene,camera)}
+setLighting('day');setRenderMode(true);setShadows(true);animate();
+</script>
+</body>
+</html>
