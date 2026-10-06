@@ -389,9 +389,9 @@ function labelValueForMachine(m,mode){
  if(mode==="utilization")return Math.round(x.util)+" %";
  return x.status;
 }
+const LABEL_TAG="\u2063\u2063";
 function miniGauge(stage){
- const n=Math.max(1,Math.min(5,stage));
- return "▰".repeat(n)+"▱".repeat(5-n);
+ return ["○","◔","◑","◕","●"][Math.max(1,Math.min(5,stage))-1];
 }
 function labelColor(m,mode){return colorForMachine(m,mode)||VIEW_COLORS.lightGreen}
 async function clearLegacyMachineIcons(){
@@ -404,29 +404,38 @@ async function clearLegacyMachineIcons(){
 }
 
 
+
 function isOurMachineLabelText(text){
  const t=String(text||"");
+ if(t.startsWith(LABEL_TAG))return true;
  return rows.some(m=>{
    const short=shortMachineName(m);
    const full=String(m.machine_name||"");
    return t.startsWith(short+"  ")||t.startsWith(short+"   ")||t.startsWith(full+"\n")||t.startsWith(full+" ");
  });
 }
-async function cleanupStaleMachineLabels(){
- if(!API||!API.markup||labelsCleaned)return;
+async function removeOurMachineLabelsFromViewer(){
+ if(!API||!API.markup)return;
+ const ids=new Set([...labelMarkupMap.values()].filter(id=>id!==undefined&&id!==null));
  try{
    const existing=await API.markup.getTextMarkups();
-   const ids=(existing||[]).filter(m=>m&&m.id!==undefined&&isOurMachineLabelText(m.text)).map(m=>m.id);
-   if(ids.length)await API.markup.removeMarkups(ids);
+   for(const m of (existing||[])){
+     if(m&&m.id!==undefined&&isOurMachineLabelText(m.text))ids.add(m.id);
+   }
  }catch(e){}
+ const remove=[...ids];
+ if(remove.length){
+   try{await API.markup.removeMarkups(remove)}catch(e){}
+ }
  labelMarkupMap=new Map();
+}
+async function cleanupStaleMachineLabels(){
+ if(!API||!API.markup||labelsCleaned)return;
+ await removeOurMachineLabelsFromViewer();
  labelsCleaned=true;
 }
 async function clearMachineLabels(){
- if(!API||!API.markup){labelMarkupMap=new Map();return}
- const ids=[...labelMarkupMap.values()].filter(id=>id!==undefined&&id!==null);
- if(ids.length){try{await API.markup.removeMarkups(ids)}catch(e){}}
- labelMarkupMap=new Map();
+ await removeOurMachineLabelsFromViewer();
 }
 async function ensureLabelPosition(objectId,mapping,force=false){
  if(labelPositionMap.has(objectId)&&!force)return labelPositionMap.get(objectId);
@@ -439,6 +448,7 @@ async function ensureLabelPosition(objectId,mapping,force=false){
    labelPositionMap.set(objectId,p);return p;
  }catch(e){return null}
 }
+
 async function updateMachineLabels(forcePositions=false){
  if(!API||labelApplyBusy)return;
  labelApplyBusy=true;
@@ -466,8 +476,11 @@ async function updateMachineLabels(forcePositions=false){
 
    await discoverMachineRuntimeMap(forcePositions);
 
-   const items=[];
-   const offsets=[[-.28,.12],[.28,.12],[-.28,-.12],[.28,-.12],[0,.22],[0,-.22]];
+   // Robust against Trimble assigning new markup IDs: remove the previous set before drawing the next one.
+   await removeOurMachineLabelsFromViewer();
+
+   const markups=[],objectIds=[];
+   const offsets=[[-.16,.08],[.16,.08],[-.16,-.08],[.16,-.08],[0,.14],[0,-.14]];
    let idx=0;
    for(const m of rows){
      const map=machineRuntimeMap.get(m.object_id);if(!map)continue;
@@ -475,11 +488,10 @@ async function updateMachineLabels(forcePositions=false){
 
      const stage=stageForMachine(m,mode);
      const value=labelValueForMachine(m,mode);
-     const existingId=labelMarkupMap.get(m.object_id);
      const off=offsets[idx%offsets.length];idx++;
 
-     const markup={
-       text:shortMachineName(m)+"  "+miniGauge(stage)+"  "+value,
+     markups.push({
+       text:LABEL_TAG+shortMachineName(m)+"  "+miniGauge(stage)+"  "+value,
        color:labelColor(m,mode),
        start:{
          type:"point",
@@ -496,20 +508,19 @@ async function updateMachineLabels(forcePositions=false){
          positionY:(p.y+off[1])*1000,
          positionZ:p.zText*1000
        }
-     };
-     if(existingId!==undefined&&existingId!==null)markup.id=existingId;
-     items.push({objectId:m.object_id,markup});
+     });
+     objectIds.push(m.object_id);
    }
 
-   if(items.length){
-     const returned=await API.markup.addTextMarkup(items.map(x=>x.markup));
-     (returned||[]).forEach((m,i)=>{
-       if(m&&m.id!==undefined&&items[i])labelMarkupMap.set(items[i].objectId,m.id);
+   if(markups.length){
+     const returned=await API.markup.addTextMarkup(markups);
+     (returned||[]).forEach((markup,i)=>{
+       if(markup&&markup.id!==undefined&&objectIds[i])labelMarkupMap.set(objectIds[i],markup.id);
      });
    }
 
    const names={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung"};
-   el("labelHint").textContent="Kompakt · "+items.length+" Maschine(n) · "+names[mode]+" · Live-Refresh 3 s.";
+   el("labelHint").textContent="Kompakt · "+markups.length+" Maschine(n) · "+names[mode]+" · Live-Refresh 3 s.";
  }catch(e){
    el("labelHint").textContent="3D-Anzeigen konnten nicht erzeugt werden: "+((e&&e.message)||String(e));
  }finally{
@@ -667,7 +678,7 @@ async function init(){
 
 document.querySelectorAll("[data-color-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
  document.querySelectorAll("[data-color-mode]").forEach(b=>b.classList.remove("active"));
- btn.classList.add("active");colorMode=btn.dataset.colorMode;updateColorLegend(colorMode);await applyColorMode(true);await updateMachineLabels(false);
+ btn.classList.add("active");colorMode=btn.dataset.colorMode;updateColorLegend(colorMode);await clearMachineLabels();await applyColorMode(true);await updateMachineLabels(false);
 }));
 
 document.querySelectorAll("[data-label-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
@@ -675,6 +686,7 @@ document.querySelectorAll("[data-label-mode]").forEach(btn=>btn.addEventListener
  btn.classList.add("active");labelMode=btn.dataset.labelMode;
  if(labelMode==="none")el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";
  else el("labelHint").textContent=colorMode==="none"?"Wähle zuerst einen Farbmodus.":"Kompakte Maschinenanzeigen werden aufgebaut …";
+ await clearMachineLabels();
  await updateMachineLabels(false);
 }));
 updateColorLegend("none");
