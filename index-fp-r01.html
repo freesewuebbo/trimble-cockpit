@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>LEANNOVA Realistic View R01</title>
 <style>
-:root{--blue:#0478A0;--cyan:#039ED2;--bg:#eef2f4;--line:#d8e0e4;--text:#182227;--muted:#66757d;--ok:#2e7d32;--warn:#a86d08;--bad:#b3261e}
+:root{--blue:#0478A0;--cyan:#039ED2;--navy:#073A5A;--bg:#eef2f4;--line:#d8e0e4;--text:#182227;--muted:#66757d;--ok:#287a3d;--warn:#a86d08;--bad:#b3261e}
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
 .app{height:100%;display:flex;flex-direction:column;border-left:4px solid var(--blue);background:#fff}
 header{flex:0 0 auto;padding:10px 12px 9px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#f8fbfc)}
@@ -13,17 +13,19 @@ header{flex:0 0 auto;padding:10px 12px 9px;border-bottom:1px solid var(--line);b
 .sub{font-size:9px;color:var(--muted);margin-top:4px}.toolbar{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 button{font:inherit;border:1px solid #b8c3c8;background:#fff;color:#34434a;padding:6px 7px;font-size:8px;font-weight:750;cursor:pointer}
 button:hover{border-color:var(--blue);color:var(--blue)}button.primary{background:var(--blue);border-color:var(--blue);color:#fff}button.active{background:#e8f6fb;border-color:var(--cyan);color:var(--blue)}button:disabled{opacity:.4;cursor:default}
-#status{font-size:8px;line-height:1.4;color:var(--muted);padding:6px 12px;border-bottom:1px solid var(--line);background:#fbfcfd}
+#status{font-size:8px;line-height:1.45;color:var(--muted);padding:7px 12px;border-bottom:1px solid var(--line);background:#fbfcfd;min-height:28px}
 #status.ok{color:var(--ok)}#status.warn{color:var(--warn)}#status.bad{color:var(--bad)}
 .stage{position:relative;flex:1 1 auto;min-height:220px;background:linear-gradient(180deg,#dce5e9 0%,#eef2f4 58%,#c9d0d3 100%);overflow:hidden}
 #view{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .hud{position:absolute;left:8px;top:8px;display:flex;gap:4px;flex-wrap:wrap;pointer-events:none}
-.pill{background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.75);box-shadow:0 2px 8px rgba(0,0,0,.08);padding:4px 6px;font-size:7px;font-weight:800;color:#3e4d54}
+.pill{background:rgba(255,255,255,.91);border:1px solid rgba(255,255,255,.75);box-shadow:0 2px 8px rgba(0,0,0,.08);padding:4px 6px;font-size:7px;font-weight:800;color:#3e4d54}
 .help{position:absolute;left:8px;bottom:8px;right:8px;background:rgba(10,20,25,.73);color:#fff;padding:6px 8px;font-size:7px;line-height:1.45;pointer-events:none}
 .footer{flex:0 0 auto;border-top:1px solid var(--line);background:#fff;padding:7px 8px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
 .stat{border:1px solid var(--line);padding:6px 7px;min-width:0}.stat .n{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.stat .l{font-size:6px;color:var(--muted);margin-top:1px}
-#standaloneNote{display:none;position:absolute;right:8px;top:8px;background:rgba(255,255,255,.92);padding:5px 7px;border:1px solid rgba(255,255,255,.8);font-size:7px;font-weight:800}
-@media(max-width:430px){.footer{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar button{padding:6px}.brand h1{font-size:14px}}
+.diag{position:absolute;right:8px;top:8px;width:min(280px,48%);background:rgba(255,255,255,.94);border:1px solid rgba(255,255,255,.85);box-shadow:0 4px 16px rgba(0,0,0,.10);padding:7px 8px;font-size:6.8px;line-height:1.45;display:none}
+.diag.show{display:block}.diag h3{font-size:7px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin:0 0 4px}.diag table{width:100%;border-collapse:collapse}.diag td{padding:1px 0;vertical-align:top}.diag td:first-child{color:var(--muted);width:36%;padding-right:6px}.diag .good{color:var(--ok)}.diag .bad{color:var(--bad)}
+#fileInput{display:none}
+@media(max-width:520px){.footer{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar button{padding:6px}.brand h1{font-size:14px}.diag{width:calc(100% - 16px);max-height:44%;overflow:auto}}
 </style>
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
@@ -33,26 +35,40 @@ button:hover{border-color:var(--blue);color:var(--blue)}button.primary{backgroun
 <body>
 <div class="app">
 <header>
-  <div class="brand"><h1>LEANNOVA Realistic View</h1><span class="tag">R01 · IFC GEOMETRY</span></div>
-  <div class="sub">Echte IFC-Geometrie · PBR-Materialien · Licht & Schatten · Trimble-Auswahl</div>
+  <div class="brand"><h1>LEANNOVA Realistic View</h1><span class="tag">R01 · IFC CORE</span></div>
+  <div class="sub">Echte IFC-Geometrie · sichere IFC-Prüfung · keine Bounding-Box-Ersatzdarstellung</div>
   <div class="toolbar">
-    <button id="syncBtn" class="primary">IFC aus Trimble laden</button>
-    <button id="popBtn">Großansicht ↗</button>
+    <button id="trimbleBtn" class="primary">IFC aus Trimble laden</button>
+    <button id="localBtn">IFC lokal öffnen</button>
+    <button id="largeBtn">Großansicht ↗</button>
+    <button id="diagBtn">Diagnose</button>
     <button id="realBtn" class="active">Realistisch</button>
-    <button id="ifcColorBtn">IFC-Farben</button>
+    <button id="ifcBtn">IFC-Farben</button>
     <button id="dayBtn" class="active">Tag</button>
     <button id="hallBtn">Hallenlicht</button>
     <button id="eveningBtn">Abend</button>
     <button id="shadowBtn" class="active">Schatten</button>
     <button id="homeBtn">Kamera zurück</button>
   </div>
+  <input id="fileInput" type="file" accept=".ifc,.IFC">
 </header>
 <div id="status" class="warn">R01 wird initialisiert …</div>
 <div class="stage">
   <canvas id="view"></canvas>
-  <div class="hud"><span id="hudModel" class="pill">0 IFC</span><span id="hudElem" class="pill">0 Elemente</span><span class="pill">echte Geometrie</span></div>
-  <div id="standaloneNote">R01 · Großansicht</div>
-  <div class="help"><b>Maus:</b> links drehen · rechts verschieben · Mausrad zoomen · IFC-Bauteil anklicken = Auswahl in R01 und Trimble. Die Darstellung verwendet jetzt die tatsächlichen IFC-Dreiecke statt Bounding-Box-Quader.</div>
+  <div class="hud"><span id="hudSource" class="pill">keine Quelle</span><span id="hudElem" class="pill">0 Elemente</span><span class="pill">echte IFC-Dreiecke</span></div>
+  <div id="diag" class="diag">
+    <h3>IFC-Diagnose</h3>
+    <table>
+      <tr><td>Quelle</td><td id="dSource">–</td></tr>
+      <tr><td>Datei</td><td id="dName">–</td></tr>
+      <tr><td>Größe</td><td id="dSize">–</td></tr>
+      <tr><td>MIME</td><td id="dMime">–</td></tr>
+      <tr><td>IFC-Header</td><td id="dHeader">–</td></tr>
+      <tr><td>Schema</td><td id="dSchema">–</td></tr>
+      <tr><td>web-ifc</td><td id="dParser">–</td></tr>
+    </table>
+  </div>
+  <div class="help"><b>Maus:</b> links drehen · rechts verschieben · Mausrad zoomen · Bauteil anklicken = Auswahl. R01 rendert nur bestätigte IFC-Rohdaten; fehlerhafte Daten werden nicht mehr an web-ifc weitergereicht.</div>
 </div>
 <div class="footer">
   <div class="stat"><div id="modelN" class="n">0</div><div class="l">IFC-MODELLE</div></div>
@@ -68,178 +84,321 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import * as WebIFC from 'https://cdn.jsdelivr.net/npm/web-ifc@0.0.78/web-ifc-api.js';
 
+const WEBIFC_ROOT='https://cdn.jsdelivr.net/npm/web-ifc@0.0.78/';
 const params=new URLSearchParams(location.search);
 const standalone=params.get('standalone')==='1';
 const session=params.get('session')||'';
-const WASM_PATH='https://cdn.jsdelivr.net/npm/web-ifc@0.0.78/';
-let API=null,ifcApi=null,loading=false,colorMode='real',shadowEnabled=true,lightingMode='day';
-let root=null,modelRecords=[],sourceCache=[],elementCount=0,triangleCount=0,selected=[];
+
+let API=null,ifcApi=null,busy=false,colorMode='real',shadowOn=true;
+let root=null,records=[],rawSources=[],elementCount=0,triangleCount=0,currentDiag=null,selected=[];
 const elementMap=new Map();
 
-const canvas=document.getElementById('view'),statusEl=document.getElementById('status');
+const el=id=>document.getElementById(id);
+const canvas=el('view');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
-renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.05;
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0xe7edef);
+scene.fog=new THREE.Fog(0xe7edef,50,180);
 const pmrem=new THREE.PMREMGenerator(renderer);
-const scene=new THREE.Scene();scene.environment=pmrem.fromScene(new RoomEnvironment()).texture;scene.background=new THREE.Color(0xe7edef);scene.fog=new THREE.Fog(0xe7edef,55,120);
-const camera=new THREE.PerspectiveCamera(42,1,.05,10000);camera.position.set(26,20,30);
-const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,2,0);controls.enableDamping=true;controls.dampingFactor=.07;controls.minDistance=1;controls.maxDistance=1500;controls.maxPolarAngle=Math.PI*.495;
+scene.environment=pmrem.fromScene(new RoomEnvironment(),.04).texture;
+
+const camera=new THREE.PerspectiveCamera(42,1,.02,5000);
+camera.position.set(26,20,30);
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,2,0);
+controls.enableDamping=true;controls.dampingFactor=.07;controls.minDistance=.5;controls.maxDistance=2000;controls.maxPolarAngle=Math.PI*.495;
 
 const hemi=new THREE.HemisphereLight(0xddefff,0x596268,1.15);scene.add(hemi);
-const sun=new THREE.DirectionalLight(0xfff2d7,2.35);sun.position.set(-18,28,22);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.left=-50;sun.shadow.camera.right=50;sun.shadow.camera.top=50;sun.shadow.camera.bottom=-50;sun.shadow.camera.near=.5;sun.shadow.camera.far=180;sun.shadow.bias=-.00015;scene.add(sun);
+const sun=new THREE.DirectionalLight(0xfff2d7,2.35);sun.position.set(-18,28,22);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.bias=-.00015;scene.add(sun);
 const hallLights=[];
-for(const x of [-18,-6,6,18]){const s=new THREE.SpotLight(0xeaf5ff,95,45,Math.PI/3,.58,1.2);s.position.set(x,18,0);s.target.position.set(x,0,0);s.castShadow=true;s.shadow.mapSize.set(512,512);scene.add(s,s.target);hallLights.push(s)}
-const groundMat=new THREE.MeshPhysicalMaterial({color:0xbfc4c6,roughness:.64,metalness:.04,clearcoat:.12,clearcoatRoughness:.62});
-const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=-.015;ground.receiveShadow=true;scene.add(ground);
-const grid=new THREE.GridHelper(400,200,0x89979e,0xcbd3d6);grid.position.y=.004;grid.material.opacity=.14;grid.material.transparent=true;scene.add(grid);
+for(const x of [-18,-6,6,18]){const s=new THREE.SpotLight(0xeaf5ff,95,55,Math.PI/3,.58,1.2);s.position.set(x,20,0);s.target.position.set(x,0,0);s.castShadow=true;s.shadow.mapSize.set(512,512);scene.add(s,s.target);hallLights.push(s)}
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(500,500),new THREE.MeshPhysicalMaterial({color:0xbfc4c6,roughness:.66,metalness:.03,clearcoat:.08}));
+ground.rotation.x=-Math.PI/2;ground.position.y=-.02;ground.receiveShadow=true;scene.add(ground);
+const grid=new THREE.GridHelper(500,250,0x89979e,0xcbd3d6);grid.position.y=.004;grid.material.opacity=.12;grid.material.transparent=true;scene.add(grid);
 
-function setStatus(t,c){statusEl.className=c||'';statusEl.textContent=t}
-function setStats(){document.getElementById('modelN').textContent=modelRecords.length;document.getElementById('elementN').textContent=elementCount.toLocaleString('de-DE');document.getElementById('triangleN').textContent=triangleCount.toLocaleString('de-DE');document.getElementById('hudModel').textContent=modelRecords.length+' IFC';document.getElementById('hudElem').textContent=elementCount.toLocaleString('de-DE')+' Elemente';document.getElementById('selectedN').textContent=selected.length?String(selected.length):'–'}
-function clearRoot(){if(root){scene.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){const a=Array.isArray(o.material)?o.material:[o.material];a.forEach(m=>m&&m.dispose&&m.dispose())}})}root=new THREE.Group();scene.add(root);modelRecords=[];elementMap.clear();elementCount=0;triangleCount=0;selected=[];setStats()}
-function decodeBase64(s){const raw=atob(s.includes(',')?s.split(',').pop():s),u=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)u[i]=raw.charCodeAt(i);return u.buffer}
-async function blobToBuffer(v){if(v instanceof Blob)return await v.arrayBuffer();if(v instanceof ArrayBuffer)return v;if(ArrayBuffer.isView(v))return v.buffer.slice(v.byteOffset,v.byteOffset+v.byteLength);if(typeof v==='string')return decodeBase64(v);throw new Error('IFC-Dateiinhalt ist nicht als Blob verfügbar')}
-function typeCategory(name){const t=(name||'').toUpperCase();if(/WINDOW|CURTAIN|GLAZ/.test(t))return'glass';if(/BEAM|COLUMN|MEMBER|PLATE|RAILING/.test(t))return'steel';if(/SLAB|WALL|FOOTING|PILE|ROOF|STAIR|RAMP/.test(t))return'concrete';if(/FLOW|PIPE|DUCT|CABLE|CONDUIT/.test(t))return'service';if(/BUILDINGELEMENTPROXY|FURNISHING|TRANSPORTELEMENT|MECHANICAL|ELECTRIC|ENERGYCONVERSION/.test(t))return'machine';return'other'}
-function realisticColor(category,source){if(category==='glass')return new THREE.Color(0x7aaebf);if(category==='steel')return new THREE.Color(0x586267);if(category==='concrete')return new THREE.Color(0xb8bdbf);if(category==='service')return source.clone().lerp(new THREE.Color(0x53636b),.45);if(category==='machine')return source.clone().lerp(new THREE.Color(0xd7dcde),.52);return source}
-function makeMaterial(pg,category){
-  const src=new THREE.Color().setRGB(Math.max(0,pg.color.x),Math.max(0,pg.color.y),Math.max(0,pg.color.z),THREE.SRGBColorSpace);
-  const c=colorMode==='ifc'?src:realisticColor(category,src);
-  const glass=category==='glass'||pg.color.w<.92;
-  let rough=.48,metal=.18,clear=.06;
-  if(category==='steel'){rough=.28;metal=.72;clear=.10}
-  if(category==='machine'){rough=.30;metal=.48;clear=.18}
-  if(category==='concrete'){rough=.78;metal=.03;clear=.03}
-  if(category==='service'){rough=.34;metal=.52}
-  if(glass){rough=.08;metal=.05;clear=.2}
-  const m=new THREE.MeshPhysicalMaterial({color:c,roughness:rough,metalness:metal,clearcoat:clear,clearcoatRoughness:.38,side:THREE.DoubleSide,transparent:glass,opacity:glass?Math.min(.48,Math.max(.18,pg.color.w||.42)):1,depthWrite:!glass});
-  m.userData={sourceColor:src.getHex(),category,alpha:pg.color.w};return m
+function status(text,kind=''){el('status').className=kind;el('status').textContent=text}
+function fmtBytes(n){if(!Number.isFinite(n))return'–';if(n<1024)return n+' B';if(n<1048576)return(n/1024).toFixed(1)+' KB';return(n/1048576).toFixed(2)+' MB'}
+function updateStats(){el('modelN').textContent=records.length;el('elementN').textContent=elementCount.toLocaleString('de-DE');el('triangleN').textContent=triangleCount.toLocaleString('de-DE');el('selectedN').textContent=selected.length?String(selected.length):'–';el('hudElem').textContent=elementCount.toLocaleString('de-DE')+' Elemente'}
+function setDiag(d){
+  currentDiag=d;
+  el('dSource').textContent=d.source||'–';el('dName').textContent=d.name||'–';el('dSize').textContent=fmtBytes(d.size);el('dMime').textContent=d.mime||'–';
+  el('dHeader').textContent=d.validIfc?'gültig':'nicht gültig';el('dHeader').className=d.validIfc?'good':'bad';
+  el('dSchema').textContent=d.schema||'–';el('dParser').textContent=d.parser||'noch nicht gestartet';
+  el('dParser').className=d.parserOk===true?'good':d.parserOk===false?'bad':'';
 }
-function refreshMaterials(){
-  modelRecords.forEach(rec=>rec.elementGroups.forEach(el=>el.children.forEach(mesh=>{
-    const d=mesh.userData.materialData;if(!d)return;
-    const pg={color:{x:d.r,y:d.g,z:d.b,w:d.a}};const old=mesh.material;mesh.material=makeMaterial(pg,d.category);old&&old.dispose&&old.dispose()
-  })));
+function setBusy(v){busy=v;['trimbleBtn','localBtn'].forEach(id=>el(id).disabled=v)}
+async function ensureIfcApi(){
+  if(ifcApi)return;
+  status('web-ifc wird initialisiert …','warn');
+  ifcApi=new WebIFC.IfcAPI();
+  ifcApi.SetWasmPath(WEBIFC_ROOT);
+  await ifcApi.Init();
+  try{ifcApi.SetLogLevel(WebIFC.LogLevel.LOG_LEVEL_ERROR)}catch(_){}
+}
+function closeModels(){
+  if(ifcApi){for(const r of records){try{if(Number.isInteger(r.modelID)&&r.modelID>=0)ifcApi.CloseModel(r.modelID)}catch(_){}}}
+}
+function clearScene(){
+  closeModels();
+  if(root){scene.remove(root);root.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){for(const m of(Array.isArray(o.material)?o.material:[o.material]))m&&m.dispose&&m.dispose()}})}
+  root=new THREE.Group();scene.add(root);records=[];elementMap.clear();elementCount=0;triangleCount=0;selected=[];updateStats()
+}
+function startsWithBytes(u8,arr){if(u8.length<arr.length)return false;for(let i=0;i<arr.length;i++)if(u8[i]!==arr[i])return false;return true}
+async function gunzipIfNeeded(buffer){
+  const u8=new Uint8Array(buffer);
+  if(startsWithBytes(u8,[0x1f,0x8b])&&typeof DecompressionStream!=='undefined'){
+    const ds=new DecompressionStream('gzip');
+    return await new Response(new Blob([u8]).stream().pipeThrough(ds)).arrayBuffer()
+  }
+  return buffer
+}
+function b64ToBuffer(s){
+  const clean=s.replace(/\s/g,'');
+  const bin=atob(clean),u8=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  return u8.buffer
+}
+async function normalizePayload(payload){
+  if(payload instanceof Blob)return await payload.arrayBuffer();
+  if(payload instanceof ArrayBuffer)return payload.slice(0);
+  if(ArrayBuffer.isView(payload))return payload.buffer.slice(payload.byteOffset,payload.byteOffset+payload.byteLength);
+  if(typeof payload==='string'){
+    let s=payload.trim();
+    if(/^data:/i.test(s)){
+      const comma=s.indexOf(',');if(comma<0)throw new Error('Ungültige Data-URL');
+      const meta=s.slice(0,comma),body=s.slice(comma+1);
+      return /;base64/i.test(meta)?b64ToBuffer(body):new TextEncoder().encode(decodeURIComponent(body)).buffer
+    }
+    if(/^\uFEFF?\s*ISO-10303-21;/i.test(s))return new TextEncoder().encode(s).buffer;
+    try{
+      const b=b64ToBuffer(s);
+      const probe=new TextDecoder('utf-8',{fatal:false}).decode(new Uint8Array(b,0,Math.min(b.byteLength,256)));
+      if(/ISO-10303-21;/i.test(probe)||b.byteLength>1024)return b
+    }catch(_){}
+    return new TextEncoder().encode(payload).buffer
+  }
+  throw new Error('Trimble liefert keinen unterstützten Dateiinhalt')
+}
+function inspectIfc(buffer,meta={}){
+  const u8=new Uint8Array(buffer);
+  const probeLen=Math.min(u8.length,256*1024);
+  const head=new TextDecoder('utf-8',{fatal:false}).decode(u8.subarray(0,probeLen)).replace(/^\uFEFF/,'');
+  const validIfc=/^\s*ISO-10303-21\s*;/i.test(head);
+  const schemaMatch=head.match(/FILE_SCHEMA\s*\(\s*\(\s*['"]([^'"]+)['"]/i);
+  const isZip=startsWithBytes(u8,[0x50,0x4b,0x03,0x04]);
+  return{source:meta.source||'–',name:meta.name||'–',size:buffer.byteLength,mime:meta.mime||'–',validIfc,schema:schemaMatch?schemaMatch[1]:(isZip?'ZIP/IFCZIP':'nicht erkannt'),isZip,parser:'noch nicht gestartet',parserOk:null}
+}
+function typeCategory(name){
+  const t=String(name||'').toUpperCase();
+  if(/WINDOW|CURTAIN|GLAZ/.test(t))return'glass';
+  if(/BEAM|COLUMN|MEMBER|PLATE|RAILING/.test(t))return'steel';
+  if(/SLAB|WALL|FOOTING|PILE|ROOF|STAIR|RAMP/.test(t))return'concrete';
+  if(/FLOW|PIPE|DUCT|CABLE|CONDUIT/.test(t))return'service';
+  if(/PROXY|FURNISHING|TRANSPORT|MECHANICAL|ELECTRIC|ENERGYCONVERSION/.test(t))return'machine';
+  return'other'
+}
+function getSourceColor(pg){return new THREE.Color(Math.max(0,pg.color.x),Math.max(0,pg.color.y),Math.max(0,pg.color.z))}
+function realisticColor(cat,src){
+  if(cat==='glass')return new THREE.Color(0x7aaebf);
+  if(cat==='steel')return src.clone().lerp(new THREE.Color(0x586267),.72);
+  if(cat==='concrete')return src.clone().lerp(new THREE.Color(0xb8bdbf),.75);
+  if(cat==='service')return src.clone().lerp(new THREE.Color(0x58666d),.45);
+  if(cat==='machine')return src.clone().lerp(new THREE.Color(0xd6dcde),.42);
+  return src
+}
+function makeMat(pg,cat){
+  const src=getSourceColor(pg),c=colorMode==='ifc'?src:realisticColor(cat,src),alpha=Number.isFinite(pg.color.w)?pg.color.w:1,glass=cat==='glass'||alpha<.92;
+  let rough=.5,metal=.15,clear=.05;
+  if(cat==='steel'){rough=.28;metal=.72;clear=.08}
+  if(cat==='machine'){rough=.30;metal=.48;clear=.18}
+  if(cat==='concrete'){rough=.78;metal=.03;clear=.02}
+  if(cat==='service'){rough=.36;metal=.48}
+  if(glass){rough=.08;metal=.05;clear=.18}
+  const m=new THREE.MeshPhysicalMaterial({color:c,roughness:rough,metalness:metal,clearcoat:clear,clearcoatRoughness:.38,side:THREE.DoubleSide,transparent:glass,opacity:glass?Math.min(.52,Math.max(.18,alpha)) : 1,depthWrite:!glass});
+  m.userData={src:src.getHex(),cat,alpha};return m
+}
+function getTypeName(modelID,expressID){try{return ifcApi.GetNameFromTypeCode(ifcApi.GetLineType(modelID,expressID))||''}catch(_){return''}}
+async function buildIfc(source){
+  await ensureIfcApi();
+  const diag=inspectIfc(source.buffer,{source:source.source,name:source.name,mime:source.mime});setDiag(diag);
+  if(diag.isZip)throw new Error('Die Datei ist ZIP/IFCZIP. Bitte die .ifc-Datei entpacken und erneut laden.');
+  if(!diag.validIfc)throw new Error('Die gelieferten Daten beginnen nicht mit ISO-10303-21; und sind daher keine IFC-Rohdatei.');
+  let modelID=-1;
+  try{
+    modelID=ifcApi.OpenModel(new Uint8Array(source.buffer),{COORDINATE_TO_ORIGIN:true,CIRCLE_SEGMENTS:18});
+  }catch(e){
+    diag.parser='OpenModel-Ausnahme: '+(e&&e.message?e.message:e);diag.parserOk=false;setDiag(diag);throw new Error('web-ifc konnte die Datei nicht öffnen.');
+  }
+  if(!Number.isInteger(modelID)||modelID<0){
+    diag.parser='OpenModel lieferte '+String(modelID);diag.parserOk=false;setDiag(diag);
+    throw new Error('web-ifc hat die IFC abgelehnt (Model-ID '+modelID+'). Weitere C++-Aufrufe wurden gestoppt.')
+  }
+  diag.parser='geöffnet · Model-ID '+modelID;diag.parserOk=true;setDiag(diag);
+  const holder=new THREE.Group(),axis=new THREE.Group();axis.rotation.x=-Math.PI/2;holder.add(axis);root.add(holder);
+  const rec={modelID,trimbleModelId:source.trimbleModelId||null,name:source.name,elementGroups:[]};records.push(rec);
+  let localElements=0,localTriangles=0;
+  ifcApi.StreamAllMeshes(modelID,flat=>{
+    if(!flat||!Number.isInteger(flat.expressID)||flat.expressID<0){try{flat&&flat.delete&&flat.delete()}catch(_){};return}
+    const typeName=getTypeName(modelID,flat.expressID),cat=typeCategory(typeName);
+    const group=new THREE.Group();group.userData={expressId:flat.expressID,trimbleModelId:source.trimbleModelId||null};axis.add(group);rec.elementGroups.push(group);
+    if(source.trimbleModelId)elementMap.set(source.trimbleModelId+':'+flat.expressID,group);
+    for(let i=0;i<flat.geometries.size();i++){
+      const pg=flat.geometries.get(i);
+      if(!pg||!Number.isInteger(pg.geometryExpressID)||pg.geometryExpressID<0)continue;
+      const wg=ifcApi.GetGeometry(modelID,pg.geometryExpressID);
+      if(!wg)continue;
+      const vs=wg.GetVertexDataSize(),is=wg.GetIndexDataSize();
+      if(vs<=0||is<=0){try{wg.delete&&wg.delete()}catch(_){};continue}
+      const v=ifcApi.GetVertexArray(wg.GetVertexData(),vs),idx=ifcApi.GetIndexArray(wg.GetIndexData(),is);
+      const vertexCount=Math.floor(v.length/6),pos=new Float32Array(vertexCount*3),nor=new Float32Array(vertexCount*3);
+      for(let j=0,n=0;j+5<v.length;j+=6,n+=3){pos[n]=v[j];pos[n+1]=v[j+1];pos[n+2]=v[j+2];nor[n]=v[j+3];nor[n+1]=v[j+4];nor[n+2]=v[j+5]}
+      const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('normal',new THREE.BufferAttribute(nor,3));
+      const IndexType=vertexCount>65535?Uint32Array:Uint16Array;geo.setIndex(new THREE.BufferAttribute(new IndexType(idx),1));
+      const mat4=new THREE.Matrix4();if(pg.flatTransformation&&pg.flatTransformation.length===16)mat4.fromArray(pg.flatTransformation);geo.applyMatrix4(mat4);geo.computeBoundingSphere();
+      const mesh=new THREE.Mesh(geo,makeMat(pg,cat));mesh.castShadow=shadowOn;mesh.receiveShadow=true;
+      mesh.userData={expressId:flat.expressID,trimbleModelId:source.trimbleModelId||null,materialData:{r:pg.color.x,g:pg.color.y,b:pg.color.z,a:pg.color.w,cat}};
+      group.add(mesh);localTriangles+=Math.floor(idx.length/3);
+      try{wg.delete&&wg.delete()}catch(_){}
+    }
+    localElements++;try{flat.delete&&flat.delete()}catch(_){}
+  });
+  elementCount+=localElements;triangleCount+=localTriangles;updateStats()
+}
+async function renderSources(sources){
+  clearScene();rawSources=sources.map(s=>({...s,buffer:s.buffer.slice(0)}));
+  if(!sources.length)throw new Error('Keine IFC-Datei verfügbar.');
+  for(let i=0;i<sources.length;i++){status('IFC wird geprüft und gerendert: '+sources[i].name+' ('+(i+1)+'/'+sources.length+') …','warn');await new Promise(r=>requestAnimationFrame(r));await buildIfc(sources[i])}
+  fitCamera();status('IFC erfolgreich geladen: '+elementCount.toLocaleString('de-DE')+' Elemente · '+triangleCount.toLocaleString('de-DE')+' Dreiecke.','ok')
+}
+function fitCamera(){
+  if(!root||!root.children.length)return;
+  root.position.set(0,0,0);root.updateMatrixWorld(true);let b=new THREE.Box3().setFromObject(root);if(b.isEmpty())return;
+  const c=b.getCenter(new THREE.Vector3());root.position.x-=c.x;root.position.z-=c.z;root.position.y-=b.min.y;root.updateMatrixWorld(true);
+  b=new THREE.Box3().setFromObject(root);const size=b.getSize(new THREE.Vector3()),center=b.getCenter(new THREE.Vector3()),d=Math.max(size.x,size.z,size.y*.7,4);
+  camera.near=Math.max(.01,d/3000);camera.far=Math.max(200,d*30);camera.updateProjectionMatrix();camera.position.set(center.x+d*.75,center.y+d*.58,center.z+d*.86);controls.target.copy(center);controls.update();
+  scene.fog.near=d*1.5;scene.fog.far=d*5;
+  const g=Math.max(50,d*3.2);ground.scale.set(g/500,g/500,1);grid.scale.set(g/500,g/500,g/500);
+  sun.shadow.camera.left=-d;sun.shadow.camera.right=d;sun.shadow.camera.top=d;sun.shadow.camera.bottom=-d;sun.shadow.camera.near=.1;sun.shadow.camera.far=d*5;sun.shadow.camera.updateProjectionMatrix()
+}
+async function loadFromTrimble(){
+  if(!API||busy)return;setBusy(true);
+  try{
+    status('Trimble-Datei wird abgerufen und als IFC geprüft …','warn');
+    const groups=await API.viewer.getObjects(),loadedIds=[...new Set((groups||[]).map(g=>g.modelId).filter(Boolean))];
+    if(!loadedIds.length)throw new Error('Im Trimble-Viewer ist kein 3D-Modell geladen.');
+    const specs=await API.viewer.getModels(),specMap=new Map((specs||[]).map(s=>[s.id,s])),sources=[],failures=[];
+    for(const id of loadedIds){
+      const spec=specMap.get(id),f=await API.viewer.getLoadedModel(id),name=(f&&f.name)||(spec&&spec.name)||'Modell';
+      if(!/\.ifc$/i.test(name)){failures.push(name+': kein .ifc');continue}
+      if(!f||f.blob==null){failures.push(name+': kein Dateiinhalt');continue}
+      try{
+        let buffer=await normalizePayload(f.blob);buffer=await gunzipIfNeeded(buffer);
+        const d=inspectIfc(buffer,{source:'Trimble Connect',name,mime:f.type||((f.blob instanceof Blob&&f.blob.type)||'–')});setDiag(d);
+        if(!d.validIfc){failures.push(name+': Trimble liefert keine IFC-Rohdaten');continue}
+        sources.push({source:'Trimble Connect',name,mime:f.type||'',trimbleModelId:id,buffer})
+      }catch(e){failures.push(name+': '+(e.message||e))}
+    }
+    if(!sources.length){
+      el('diag').classList.add('show');
+      throw new Error('Keine gültige IFC-Rohdatei aus Trimble erhalten. '+(failures.length?failures.join(' | ')+' ':'')+'Nutze bitte „IFC lokal öffnen“.')
+    }
+    el('hudSource').textContent='Trimble Connect';await renderSources(sources)
+  }catch(e){status('IFC konnte nicht aus Trimble geladen werden: '+(e.message||e),'bad')}
+  finally{setBusy(false)}
+}
+async function loadLocalFile(file){
+  if(!file||busy)return;setBusy(true);
+  try{
+    status('Lokale IFC wird geprüft …','warn');let buffer=await file.arrayBuffer();buffer=await gunzipIfNeeded(buffer);
+    const d=inspectIfc(buffer,{source:'Lokale Datei',name:file.name,mime:file.type||'application/octet-stream'});setDiag(d);el('diag').classList.add('show');
+    if(!d.validIfc)throw new Error('Die gewählte Datei ist keine gültige STEP/IFC-Rohdatei.');
+    el('hudSource').textContent='lokale IFC';await renderSources([{source:'Lokale Datei',name:file.name,mime:file.type,trimbleModelId:null,buffer}])
+  }catch(e){status('Lokale IFC konnte nicht geladen werden: '+(e.message||e),'bad')}
+  finally{setBusy(false);el('fileInput').value=''}
+}
+function rebuildMaterials(){
+  for(const rec of records)for(const g of rec.elementGroups)for(const mesh of g.children){
+    const d=mesh.userData.materialData;if(!d)continue;
+    const pg={color:{x:d.r,y:d.g,z:d.b,w:d.a}},old=mesh.material;mesh.material=makeMat(pg,d.cat);old&&old.dispose&&old.dispose()
+  }
   applyHighlight()
 }
 function applyHighlight(){
-  modelRecords.forEach(rec=>rec.elementGroups.forEach(g=>g.children.forEach(m=>{if(m.material&&m.material.emissive){m.material.emissive.setHex(0);m.material.emissiveIntensity=0}})));
-  for(const s of selected){const g=elementMap.get(s.trimbleModelId+':'+s.expressId);if(!g)continue;g.children.forEach(m=>{if(m.material&&m.material.emissive){m.material.emissive.setHex(0x006b8e);m.material.emissiveIntensity=.62}})}
-  setStats()
+  for(const rec of records)for(const g of rec.elementGroups)for(const m of g.children){if(m.material&&m.material.emissive){m.material.emissive.setHex(0);m.material.emissiveIntensity=0}}
+  for(const s of selected){const g=elementMap.get(s.trimbleModelId+':'+s.expressId);if(g)for(const m of g.children){if(m.material&&m.material.emissive){m.material.emissive.setHex(0x006b8e);m.material.emissiveIntensity=.65}}}
+  updateStats()
 }
-async function ensureIfcApi(){if(ifcApi)return;ifcApi=new WebIFC.IfcAPI();ifcApi.SetWasmPath(WASM_PATH);await ifcApi.Init()}
-function getTypeName(modelID,expressID){try{return ifcApi.GetNameFromTypeCode(ifcApi.GetLineType(modelID,expressID))||''}catch(_){return''}}
-function applyPlacement(holder,p){
-  if(!p)return;
-  const pos=p.position||{};holder.position.set((Number(pos.x)||0)/1000,(Number(pos.z)||0)/1000,-(Number(pos.y)||0)/1000);
-  const rd=p.refDirection||{};if(Number.isFinite(Number(rd.x))&&Number.isFinite(Number(rd.y))){holder.rotation.y=Math.atan2(Number(rd.y)||0,Number(rd.x)||1)}
-  const sc=Number(p.scale);if(Number.isFinite(sc)&&sc>0)holder.scale.setScalar(sc)
-}
-async function buildIfc(source){
-  await ensureIfcApi();
-  const u8=new Uint8Array(source.buffer);
-  const modelID=ifcApi.OpenModel(u8,{COORDINATE_TO_ORIGIN:false,CIRCLE_SEGMENTS:24,MEMORY_LIMIT:2147483648});
-  const holder=new THREE.Group();applyPlacement(holder,source.placement);
-  const axisFix=new THREE.Group();axisFix.rotation.x=-Math.PI/2;holder.add(axisFix);root.add(holder);
-  const rec={trimbleModelId:source.trimbleModelId,name:source.name,modelID,holder,axisFix,elementGroups:[]};modelRecords.push(rec);
-  let localElements=0,localTris=0;
-  ifcApi.StreamAllMeshes(modelID,(flat)=>{
-    const typeName=getTypeName(modelID,flat.expressID),cat=typeCategory(typeName);
-    const eg=new THREE.Group();eg.userData={expressId:flat.expressID,trimbleModelId:source.trimbleModelId,typeName};axisFix.add(eg);rec.elementGroups.push(eg);elementMap.set(source.trimbleModelId+':'+flat.expressID,eg);
-    for(let i=0;i<flat.geometries.size();i++){
-      const pg=flat.geometries.get(i),wg=ifcApi.GetGeometry(modelID,pg.geometryExpressID);
-      const v=ifcApi.GetVertexArray(wg.GetVertexData(),wg.GetVertexDataSize()),idx=ifcApi.GetIndexArray(wg.GetIndexData(),wg.GetIndexDataSize());
-      const pos=new Float32Array(v.length/2),nor=new Float32Array(v.length/2);
-      for(let j=0;j<v.length;j+=6){const k=j/2;pos[k]=v[j];pos[k+1]=v[j+1];pos[k+2]=v[j+2];nor[k]=v[j+3];nor[k+1]=v[j+4];nor[k+2]=v[j+5]}
-      const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('normal',new THREE.BufferAttribute(nor,3));geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idx),1));
-      geo.applyMatrix4(new THREE.Matrix4().fromArray(pg.flatTransformation));wg.delete&&wg.delete();
-      const mat=makeMaterial(pg,cat),mesh=new THREE.Mesh(geo,mat);mesh.castShadow=shadowEnabled;mesh.receiveShadow=true;
-      mesh.userData={expressId:flat.expressID,trimbleModelId:source.trimbleModelId,materialData:{r:pg.color.x,g:pg.color.y,b:pg.color.z,a:pg.color.w,category:cat}};eg.add(mesh);localTris+=Math.floor(idx.length/3)
-    }
-    localElements++;flat.delete&&flat.delete()
-  });
-  elementCount+=localElements;triangleCount+=localTris;setStats()
-}
-function centerAndFit(){
-  if(!root||!root.children.length)return;
-  root.position.set(0,0,0);root.updateMatrixWorld(true);
-  const b=new THREE.Box3().setFromObject(root);if(b.isEmpty())return;
-  const c=b.getCenter(new THREE.Vector3());root.position.x-=c.x;root.position.z-=c.z;root.position.y-=b.min.y;root.updateMatrixWorld(true);
-  const b2=new THREE.Box3().setFromObject(root),size=b2.getSize(new THREE.Vector3()),center=b2.getCenter(new THREE.Vector3()),d=Math.max(size.x,size.z,size.y*.75,4);
-  camera.near=Math.max(.01,d/2000);camera.far=Math.max(100,d*30);camera.updateProjectionMatrix();camera.position.set(center.x+d*.72,center.y+d*.58,center.z+d*.82);controls.target.copy(center);controls.update();
-  const g=Math.max(40,d*3);ground.scale.set(g/400,g/400,1);grid.scale.set(g/400,g/400,g/400);
-  scene.fog.near=d*1.25;scene.fog.far=d*4.5;sun.shadow.camera.left=-d;sun.shadow.camera.right=d;sun.shadow.camera.top=d;sun.shadow.camera.bottom=-d;sun.shadow.camera.far=d*4;sun.shadow.camera.updateProjectionMatrix()
-}
-async function renderSources(sources){
-  clearRoot();sourceCache=sources.map(s=>({name:s.name,trimbleModelId:s.trimbleModelId,placement:s.placement,buffer:s.buffer.slice(0)}));
-  if(!sources.length){setStatus('Keine IFC-Quelldatei verfügbar. R01 rendert absichtlich keine Bounding-Box-Quader mehr.','bad');return}
-  for(let i=0;i<sources.length;i++){setStatus('Echte IFC-Geometrie wird gelesen: '+sources[i].name+' ('+(i+1)+'/'+sources.length+') …','warn');await new Promise(r=>requestAnimationFrame(r));await buildIfc(sources[i])}
-  centerAndFit();setStatus('Echte IFC-Geometrie aktiv: '+elementCount.toLocaleString('de-DE')+' Elemente / '+triangleCount.toLocaleString('de-DE')+' Dreiecke.','ok')
-}
-async function syncFromTrimble(){
-  if(!API||loading)return;loading=true;document.getElementById('syncBtn').disabled=true;
-  try{
-    setStatus('Lese geladene IFC-Dateien direkt aus Trimble Connect …','warn');
-    const groups=await API.viewer.getObjects(),ids=[...new Set((groups||[]).map(g=>g.modelId).filter(Boolean))],specs=await API.viewer.getModels(),specMap=new Map((specs||[]).map(s=>[s.id,s]));
-    const sources=[];
-    for(const modelId of ids){
-      const spec=specMap.get(modelId),f=await API.viewer.getLoadedModel(modelId),name=(f&&f.name)||(spec&&spec.name)||'Modell';
-      if(!/\.ifc$/i.test(name)){continue}
-      if(!f||!f.blob){continue}
-      const buffer=await blobToBuffer(f.blob);sources.push({name,trimbleModelId:modelId,placement:spec&&spec.placement,buffer})
-    }
-    await renderSources(sources)
-  }catch(e){setStatus('IFC-Geometrie konnte nicht geladen werden: '+(e&&e.message?e.message:e),'bad')}
-  finally{loading=false;document.getElementById('syncBtn').disabled=false}
-}
-function setColorMode(mode){colorMode=mode;document.getElementById('realBtn').classList.toggle('active',mode==='real');document.getElementById('ifcColorBtn').classList.toggle('active',mode==='ifc');refreshMaterials()}
+function setColorMode(mode){colorMode=mode;el('realBtn').classList.toggle('active',mode==='real');el('ifcBtn').classList.toggle('active',mode==='ifc');rebuildMaterials()}
 function setLighting(mode){
-  lightingMode=mode;document.getElementById('dayBtn').classList.toggle('active',mode==='day');document.getElementById('hallBtn').classList.toggle('active',mode==='hall');document.getElementById('eveningBtn').classList.toggle('active',mode==='evening');
+  ['day','hall','evening'].forEach(x=>el(x+'Btn').classList.toggle('active',x===mode));
   if(mode==='day'){scene.background.set(0xe7edef);scene.fog.color.set(0xe7edef);hemi.intensity=1.2;sun.intensity=2.35;hallLights.forEach(l=>l.intensity=42);renderer.toneMappingExposure=1.05}
   else if(mode==='hall'){scene.background.set(0xcdd6da);scene.fog.color.set(0xcdd6da);hemi.intensity=.58;sun.intensity=.42;hallLights.forEach(l=>l.intensity=125);renderer.toneMappingExposure=1.08}
   else{scene.background.set(0x2e414c);scene.fog.color.set(0x2e414c);hemi.intensity=.26;sun.intensity=.16;hallLights.forEach(l=>l.intensity=160);renderer.toneMappingExposure=.93}
 }
-function setShadows(on){shadowEnabled=on;renderer.shadowMap.enabled=on;sun.castShadow=on;hallLights.forEach(l=>l.castShadow=on);modelRecords.forEach(r=>r.elementGroups.forEach(g=>g.children.forEach(m=>m.castShadow=on)));document.getElementById('shadowBtn').classList.toggle('active',on)}
-function findRecord(trimbleModelId){return modelRecords.find(r=>r.trimbleModelId===trimbleModelId)}
+function toggleShadows(){shadowOn=!shadowOn;renderer.shadowMap.enabled=shadowOn;sun.castShadow=shadowOn;hallLights.forEach(l=>l.castShadow=shadowOn);for(const r of records)for(const g of r.elementGroups)for(const m of g.children)m.castShadow=shadowOn;el('shadowBtn').classList.toggle('active',shadowOn)}
 function lineGuid(rec,expressId){try{const line=ifcApi.GetLine(rec.modelID,expressId);return line&&line.GlobalId&&(line.GlobalId.value||line.GlobalId)}catch(_){return null}}
-async function pickTrimble(trimbleModelId,expressId){
-  if(!API)return;const rec=findRecord(trimbleModelId),guid=rec&&lineGuid(rec,expressId);if(!guid)return;
-  try{const ids=await API.viewer.convertToObjectRuntimeIds(trimbleModelId,[String(guid)]);if(ids&&ids[0]!=null)await API.viewer.setSelection({modelObjectIds:[{modelId:trimbleModelId,objectRuntimeIds:[ids[0]]}]},'set')}catch(_){}
+async function selectInTrimble(modelId,expressId){
+  if(!API||!modelId)return;const rec=records.find(r=>r.trimbleModelId===modelId),guid=rec&&lineGuid(rec,expressId);if(!guid)return;
+  try{const ids=await API.viewer.convertToObjectRuntimeIds(modelId,[String(guid)]);if(ids&&ids[0]!=null)await API.viewer.setSelection({modelObjectIds:[{modelId,objectRuntimeIds:[ids[0]]}]},'set')}catch(_){}
 }
-async function onTrimbleSelection(args){
-  if(!API||!ifcApi)return;const sel=(args&&args.data)||[];selected=[];
-  for(const s of sel){const rec=findRecord(s.modelId);if(!rec)continue;try{const guids=await API.viewer.convertToObjectIds(s.modelId,s.objectRuntimeIds||[]);for(const guid of guids||[]){const ex=ifcApi.GetExpressIdFromGuid(rec.modelID,String(guid));if(ex!==undefined&&ex!==null)selected.push({trimbleModelId:s.modelId,expressId:Number(ex)})}}catch(_){}}
+async function trimbleSelection(args){
+  if(!API||!ifcApi)return;selected=[];const arr=(args&&args.data)||[];
+  for(const s of arr){const rec=records.find(r=>r.trimbleModelId===s.modelId);if(!rec)continue;try{const guids=await API.viewer.convertToObjectIds(s.modelId,s.objectRuntimeIds||[]);for(const guid of guids||[]){const ex=ifcApi.GetExpressIdFromGuid(rec.modelID,String(guid));if(Number.isInteger(ex)&&ex>=0)selected.push({trimbleModelId:s.modelId,expressId:ex})}}catch(_){}}
   applyHighlight()
 }
-const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();let down={x:0,y:0};
-canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY}});
+const ray=new THREE.Raycaster(),pointer=new THREE.Vector2();let down={x:0,y:0};
+canvas.addEventListener('pointerdown',e=>down={x:e.clientX,y:e.clientY});
 canvas.addEventListener('pointerup',async e=>{
   if(Math.hypot(e.clientX-down.x,e.clientY-down.y)>5||!root)return;
-  const r=canvas.getBoundingClientRect();pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;raycaster.setFromCamera(pointer,camera);
-  const hits=raycaster.intersectObject(root,true);const hit=hits.find(h=>h.object&&h.object.userData&&h.object.userData.expressId!=null);if(!hit)return;
-  const d=hit.object.userData;selected=[{trimbleModelId:d.trimbleModelId,expressId:d.expressId}];applyHighlight();await pickTrimble(d.trimbleModelId,d.expressId)
+  const r=canvas.getBoundingClientRect();pointer.x=((e.clientX-r.left)/r.width)*2-1;pointer.y=-((e.clientY-r.top)/r.height)*2+1;ray.setFromCamera(pointer,camera);
+  const hit=ray.intersectObject(root,true).find(h=>Number.isInteger(h.object?.userData?.expressId));if(!hit)return;
+  const d=hit.object.userData;selected=[{trimbleModelId:d.trimbleModelId,expressId:d.expressId}];applyHighlight();await selectInTrimble(d.trimbleModelId,d.expressId)
 });
 function openLarge(){
-  if(!sourceCache.length){setStatus('Bitte zuerst die IFC-Geometrie laden; danach kann die Großansicht geöffnet werden.','warn');return}
+  if(!rawSources.length){status('Bitte zuerst eine IFC laden.','warn');return}
   const sid='r01-'+Date.now(),u=new URL(location.href);u.searchParams.set('standalone','1');u.searchParams.set('session',sid);
-  const child=window.open(u.toString(),'R01_'+sid,'width=1500,height=950,resizable=yes,scrollbars=no');if(!child){setStatus('Das Browserfenster wurde blockiert. Bitte Pop-ups für diese Seite erlauben.','warn');return}
-  const handler=ev=>{if(ev.origin!==location.origin||ev.source!==child||!ev.data||ev.data.type!=='R01_READY'||ev.data.session!==sid)return;
-    const files=sourceCache.map(s=>({name:s.name,trimbleModelId:s.trimbleModelId,placement:s.placement,buffer:s.buffer.slice(0)})),transfers=files.map(f=>f.buffer);
+  const child=window.open(u.toString(),'R01_'+sid,'width=1500,height=950,resizable=yes,scrollbars=no');if(!child){status('Browser blockiert die Großansicht. Bitte Pop-ups für diese Seite erlauben.','warn');return}
+  const handler=ev=>{
+    if(ev.origin!==location.origin||ev.source!==child||!ev.data||ev.data.type!=='R01_READY'||ev.data.session!==sid)return;
+    const files=rawSources.map(s=>({...s,buffer:s.buffer.slice(0)})),transfers=files.map(f=>f.buffer);
     child.postMessage({type:'R01_FILES',session:sid,files},location.origin,transfers);window.removeEventListener('message',handler)
   };window.addEventListener('message',handler)
 }
 async function connectTrimble(){
-  try{API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{if(event==='viewer.onSelectionChanged')onTrimbleSelection(args);if(event==='viewer.onModelStateChanged')setTimeout(syncFromTrimble,600)},30000);setStatus('Trimble verbunden. Echte IFC-Geometrie wird geladen …','warn');await syncFromTrimble()}
-  catch(e){setStatus('R01 konnte keine Trimble-Verbindung herstellen.','warn')}
+  try{
+    API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{if(event==='viewer.onSelectionChanged')trimbleSelection(args)},30000);
+    status('Trimble verbunden. Klicke „IFC aus Trimble laden“.','ok')
+  }catch(e){status('Keine Trimble-Verbindung. Du kannst „IFC lokal öffnen“ verwenden.','warn')}
 }
 function setupStandalone(){
-  document.getElementById('syncBtn').style.display='none';document.getElementById('popBtn').style.display='none';document.getElementById('standaloneNote').style.display='block';setStatus('Warte auf IFC-Daten aus der geöffneten Trimble-Ansicht …','warn');
-  window.addEventListener('message',async ev=>{if(ev.origin!==location.origin||!ev.data||ev.data.type!=='R01_FILES'||ev.data.session!==session)return;try{await renderSources(ev.data.files||[])}catch(e){setStatus('Großansicht konnte IFC nicht laden: '+e.message,'bad')}});
+  el('trimbleBtn').style.display='none';el('localBtn').style.display='none';el('largeBtn').style.display='none';status('Warte auf IFC aus dem Trimble-Fenster …','warn');
+  window.addEventListener('message',async ev=>{if(ev.origin!==location.origin||!ev.data||ev.data.type!=='R01_FILES'||ev.data.session!==session)return;try{el('hudSource').textContent='Großansicht';await renderSources(ev.data.files||[])}catch(e){status('Großansicht: '+(e.message||e),'bad')}});
   if(window.opener)window.opener.postMessage({type:'R01_READY',session},location.origin)
 }
-document.getElementById('syncBtn').onclick=syncFromTrimble;document.getElementById('popBtn').onclick=openLarge;document.getElementById('realBtn').onclick=()=>setColorMode('real');document.getElementById('ifcColorBtn').onclick=()=>setColorMode('ifc');document.getElementById('dayBtn').onclick=()=>setLighting('day');document.getElementById('hallBtn').onclick=()=>setLighting('hall');document.getElementById('eveningBtn').onclick=()=>setLighting('evening');document.getElementById('shadowBtn').onclick=()=>setShadows(!shadowEnabled);document.getElementById('homeBtn').onclick=centerAndFit;
+
+el('trimbleBtn').onclick=loadFromTrimble;
+el('localBtn').onclick=()=>el('fileInput').click();
+el('fileInput').onchange=e=>loadLocalFile(e.target.files&&e.target.files[0]);
+el('largeBtn').onclick=openLarge;
+el('diagBtn').onclick=()=>el('diag').classList.toggle('show');
+el('realBtn').onclick=()=>setColorMode('real');
+el('ifcBtn').onclick=()=>setColorMode('ifc');
+el('dayBtn').onclick=()=>setLighting('day');
+el('hallBtn').onclick=()=>setLighting('hall');
+el('eveningBtn').onclick=()=>setLighting('evening');
+el('shadowBtn').onclick=toggleShadows;
+el('homeBtn').onclick=fitCamera;
+
 function resize(){const r=canvas.getBoundingClientRect(),w=Math.max(1,Math.floor(r.width)),h=Math.max(1,Math.floor(r.height));if(canvas.width!==Math.floor(w*renderer.getPixelRatio())||canvas.height!==Math.floor(h*renderer.getPixelRatio())){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}}
-function animate(){requestAnimationFrame(animate);resize();controls.update();renderer.render(scene,camera)}
-clearRoot();setLighting('day');setShadows(true);animate();if(standalone)setupStandalone();else connectTrimble();
+function loop(){requestAnimationFrame(loop);resize();controls.update();renderer.render(scene,camera)}
+clearScene();setLighting('day');loop();if(standalone)setupStandalone();else connectTrimble();
 </script>
 </body>
 </html>
