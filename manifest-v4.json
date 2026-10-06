@@ -1,7 +1,7 @@
 {
-  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-v4.html?v=spatial-20261006-1",
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-v4.html?v=spatial-20261006-3",
   "title": "LEANNOVA Maschinen-Cockpit V4 Spatial Live",
-  "description": "Digital-Twin-Demo mit dynamischen Tachometern, 3D-Farbmodi und Live-Maschinenlabels direkt über den 3D-Objekten",
+  "description": "Digital-Twin-Demo mit dynamischen Tachometern im Cockpit und modeabhängigen 3D-Tachoanzeigen direkt über den Maschinen",
   "extensionType": [
     "3dviewer"
   ],
