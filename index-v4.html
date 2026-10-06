@@ -112,7 +112,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
       <button class="labelModeBtn" data-label-mode="none">Aus</button>
       <button class="labelModeBtn active" data-label-mode="gauge">Name + Tacho</button>
     </div>
-    <div id="labelHint" class="labelHint">Name + Tacho: Maschinenname, 5-stufige Tachoanzeige und Live-Wert direkt über jeder Maschine.</div>
+    <div id="labelHint" class="labelHint">Name + Tacho: Erst nach Auswahl eines Farbmodus wird je Maschine eine kompakte Live-Anzeige eingeblendet.</div>
   </div>
 </div>
 
@@ -367,7 +367,13 @@ function stageForMachine(m,mode){
  if(mode==="utilization"){if(x.util>=95)return 5;if(x.util>=85)return 4;if(x.util>=75)return 3;if(x.util>=55)return 1;return 2}
  return 1;
 }
-function gaugeModeForViewer(){return colorMode==="none"?"status":colorMode}
+
+function gaugeModeForViewer(){return colorMode==="none"?null:colorMode}
+function shortMachineName(m){
+ const raw=String(m.machine_name||m.machine_id||"Maschine");
+ const base=raw.split(" – ")[0].split(" - ")[0];
+ return base.length>18?base.slice(0,18):base;
+}
 function labelValueForMachine(m,mode){
  const x=liveMetricsForMachine(m);
  if(mode==="temperature")return x.temp.toFixed(1)+" °C";
@@ -375,10 +381,8 @@ function labelValueForMachine(m,mode){
  if(mode==="utilization")return Math.round(x.util)+" %";
  return x.status;
 }
-function labelModeTitle(mode){return ({temperature:"TEMP",status:"STATUS",quality:"QUALITÄT",utilization:"AUSLASTUNG"})[mode]||"STATUS"}
-function gaugeBar(stage){
- const n=Math.max(0,Math.min(5,stage));
- return "▰".repeat(n)+"▱".repeat(5-n);
+function miniGauge(stage){
+ return ["○","◔","◑","◕","●"][Math.max(1,Math.min(5,stage))-1];
 }
 function labelColor(m,mode){return colorForMachine(m,mode)||VIEW_COLORS.lightGreen}
 async function clearLegacyMachineIcons(){
@@ -389,9 +393,19 @@ async function clearLegacyMachineIcons(){
    if(ours.length)await API.viewer.removeIcon(ours);
  }catch(e){}
 }
+
 async function clearMachineLabels(){
  if(!API||!API.markup){labelMarkupIds=[];return}
- if(labelMarkupIds.length){try{await API.markup.removeMarkups(labelMarkupIds)}catch(e){}}
+ const ids=new Set(labelMarkupIds);
+ try{
+   const existing=await API.markup.getTextMarkups();
+   for(const m of (existing||[])){
+     const id=Number(m&&m.id);
+     if(id>=880000&&id<881000)ids.add(id);
+   }
+ }catch(e){}
+ const remove=[...ids];
+ if(remove.length){try{await API.markup.removeMarkups(remove)}catch(e){}}
  labelMarkupIds=[];
 }
 async function ensureLabelPosition(objectId,mapping,force=false){
@@ -405,36 +419,74 @@ async function ensureLabelPosition(objectId,mapping,force=false){
    labelPositionMap.set(objectId,p);return p;
  }catch(e){return null}
 }
+
 async function updateMachineLabels(forcePositions=false){
  if(!API||labelApplyBusy)return;
  labelApplyBusy=true;
  try{
    await clearLegacyMachineIcons();
-   if(labelMode==="none"){await clearMachineLabels();el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";return}
-   if(!API.markup||!API.markup.addTextMarkup){el("labelHint").textContent="Textanzeigen werden von dieser Viewer-Version nicht unterstützt.";return}
+
+   if(labelMode==="none"){
+     await clearMachineLabels();
+     el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";
+     return;
+   }
+
+   const mode=gaugeModeForViewer();
+   if(!mode){
+     await clearMachineLabels();
+     el("labelHint").textContent="Wähle oben Temperatur, Betriebsstatus, Qualität oder Auslastung – erst dann erscheinen die Anzeigen über den Maschinen.";
+     return;
+   }
+
+   if(!API.markup||!API.markup.addTextMarkup){
+     el("labelHint").textContent="Textanzeigen werden von dieser Viewer-Version nicht unterstützt.";
+     return;
+   }
+
    await discoverMachineRuntimeMap(forcePositions);
-   const mode=gaugeModeForViewer(),markups=[],ids=[];let idx=0;
+   await clearMachineLabels();
+
+   const markups=[],ids=[];let idx=0;
    for(const m of rows){
      const map=machineRuntimeMap.get(m.object_id);if(!map)continue;
      const p=await ensureLabelPosition(m.object_id,map,forcePositions);if(!p)continue;
-     const id=880000+idx++,stage=stageForMachine(m,mode),color=labelColor(m,mode),value=labelValueForMachine(m,mode);
-     const text=(m.machine_name||m.machine_id||"Maschine")+"\n"+labelModeTitle(mode)+"  "+gaugeBar(stage)+"  "+value;
+     const id=880000+idx++;
+     const stage=stageForMachine(m,mode);
+     const text=shortMachineName(m)+"   "+miniGauge(stage)+"   "+labelValueForMachine(m,mode);
      markups.push({
-       id,text,color,
-       start:{type:"point",modelId:map.modelId,objectId:map.runtimeId,referenceObjectId:m.object_id,positionX:p.x*1000,positionY:p.y*1000,positionZ:p.zTop*1000},
-       end:{type:"point",positionX:p.x*1000,positionY:p.y*1000,positionZ:p.zText*1000}
+       id,
+       text,
+       color:labelColor(m,mode),
+       start:{
+         type:"point",
+         modelId:map.modelId,
+         objectId:map.runtimeId,
+         referenceObjectId:m.object_id,
+         positionX:p.x*1000,
+         positionY:p.y*1000,
+         positionZ:p.zTop*1000
+       },
+       end:{
+         type:"point",
+         positionX:p.x*1000,
+         positionY:p.y*1000,
+         positionZ:p.zText*1000
+       }
      });
      ids.push(id);
    }
-   const stale=labelMarkupIds.filter(id=>!ids.includes(id));
-   if(stale.length)try{await API.markup.removeMarkups(stale)}catch(e){}
+
    if(markups.length)await API.markup.addTextMarkup(markups);
    labelMarkupIds=ids;
-   const names={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung",none:"Betriebsstatus"};
-   el("labelHint").textContent="Name + Tacho · "+markups.length+" Maschine(n) · "+names[colorMode]+" · Live-Refresh 3 s.";
+
+   const names={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung"};
+   el("labelHint").textContent="Kompakt · "+markups.length+" Maschine(n) · "+names[mode]+" · Live-Refresh 3 s.";
  }catch(e){
    el("labelHint").textContent="3D-Anzeigen konnten nicht erzeugt werden: "+((e&&e.message)||String(e));
- }finally{labelApplyBusy=false}
+ }finally{
+   labelApplyBusy=false;
+ }
 }
 async function discoverMachineRuntimeMap(force=false){
  if(!API)return;
@@ -587,14 +639,14 @@ async function init(){
 
 document.querySelectorAll("[data-color-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
  document.querySelectorAll("[data-color-mode]").forEach(b=>b.classList.remove("active"));
- btn.classList.add("active");colorMode=btn.dataset.colorMode;updateColorLegend(colorMode);await applyColorMode(true);if(labelMode!=="none")await updateMachineLabels(false);
+ btn.classList.add("active");colorMode=btn.dataset.colorMode;updateColorLegend(colorMode);await applyColorMode(true);await updateMachineLabels(false);
 }));
 
 document.querySelectorAll("[data-label-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
  document.querySelectorAll("[data-label-mode]").forEach(b=>b.classList.remove("active"));
  btn.classList.add("active");labelMode=btn.dataset.labelMode;
  if(labelMode==="none")el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";
- else el("labelHint").textContent="Maschinenname + Tacho werden im 3D-Modell aufgebaut …";
+ else el("labelHint").textContent=colorMode==="none"?"Wähle zuerst einen Farbmodus.":"Kompakte Maschinenanzeigen werden aufgebaut …";
  await updateMachineLabels(false);
 }));
 updateColorLegend("none");
