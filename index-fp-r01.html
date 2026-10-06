@@ -295,21 +295,21 @@ function v3(v){
   if(Array.isArray(v))return new THREE.Vector3(Number(v[0])||0,Number(v[1])||0,Number(v[2])||0);
   return new THREE.Vector3(Number(v.x)||0,Number(v.y)||0,Number(v.z)||0);
 }
-function trimbleToThree(v){
-  const p=v3(v);return new THREE.Vector3(p.x,p.z,-p.y);
+function trimbleToThree(v,scale=1){
+  const p=v3(v);return new THREE.Vector3(p.x*scale,p.z*scale,-p.y*scale);
 }
 async function syncTrimbleCamera(){
   if(!API)return;
   try{
     const c=await API.viewer.getCamera();
     if(!c)return;
-    const pos=trimbleToThree(c.position||c.eye||c.cameraPosition);
-    const tgt=trimbleToThree(c.target||c.lookAt||c.targetPosition);
-    const up=trimbleToThree(c.up||{x:0,y:0,z:1});
+    const pos=trimbleToThree(c.position);
+    const tgt=trimbleToThree(c.lookAt);
+    const up=trimbleToThree(c.upDirection||{x:0,y:0,z:1});
     if(pos.lengthSq()>0)camera.position.copy(pos);
     if(tgt.lengthSq()>0)controls.target.copy(tgt);
     if(up.lengthSq()>0)camera.up.copy(up.normalize());
-    if(Number.isFinite(Number(c.fov)))camera.fov=Number(c.fov);
+    if(Number.isFinite(Number(c.fieldOfView)))camera.fov=Number(c.fieldOfView);
     camera.updateProjectionMatrix();controls.update();
     status('Trimble-Kamera übernommen.','ok');
   }catch(e){status('Kamera konnte nicht übernommen werden: '+(e.message||e),'warn')}
@@ -318,8 +318,8 @@ function applySectionPlanes(){
   const planes=[];
   if(sectionsEnabled){
     for(const s of trimbleSectionPlanes){
-      const n=trimbleToThree(s.direction||s.normal);
-      const p=trimbleToThree(s.position||s.point);
+      const n=trimbleToThree({x:s.directionX,y:s.directionY,z:s.directionZ});
+      const p=trimbleToThree({x:s.positionX,y:s.positionY,z:s.positionZ},.001);
       if(n.lengthSq()===0)continue;
       n.normalize();
       planes.push(new THREE.Plane(n,-n.dot(p)));
@@ -334,8 +334,14 @@ async function syncTrimbleSections(){
 }
 async function syncTrimblePointClouds(){
   if(!API)return;
-  try{trimblePointClouds=await API.viewer.getPointClouds()||[];updateStats()}
-  catch(_){trimblePointClouds=[];updateStats()}
+  try{
+    trimblePointClouds=await API.viewer.getPointClouds()||[];
+    updateStats();
+    if(trimblePointClouds.length){
+      const visible=trimblePointClouds.filter(p=>p.visible!==false).length;
+      el('hudPoints').textContent=visible+'/'+trimblePointClouds.length+' Punktwolken';
+    }
+  }catch(_){trimblePointClouds=[];updateStats()}
 }
 async function syncTrimbleSceneState(){
   if(!API)return;
