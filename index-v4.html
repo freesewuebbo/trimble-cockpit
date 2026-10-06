@@ -227,7 +227,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 <script>
 let API=null,rows=[],current=null,currentObjectId="",currentModelId="",tempHistory=[],liveTimer=null,colorTimer=null;
 const DEMO_INTERVAL_MS=3000;
-let colorMode="none",labelMode="gauge",machineRuntimeMap=new Map(),colorApplyBusy=false,labelApplyBusy=false,labelPositionMap=new Map(),labelMarkupIds=[];
+let colorMode="none",labelMode="gauge",machineRuntimeMap=new Map(),colorApplyBusy=false,labelApplyBusy=false,labelPositionMap=new Map(),labelMarkupMap=new Map(),labelsCleaned=false;
 const VIEW_COLORS={
   darkGreen:{r:46,g:125,b:50,a:255},
   lightGreen:{r:124,g:179,b:66,a:255},
@@ -369,10 +369,18 @@ function stageForMachine(m,mode){
 }
 
 function gaugeModeForViewer(){return colorMode==="none"?null:colorMode}
+
 function shortMachineName(m){
- const raw=String(m.machine_name||m.machine_id||"Maschine");
- const base=raw.split(" – ")[0].split(" - ")[0];
- return base.length>18?base.slice(0,18):base;
+ const n=String(m.machine_name||m.machine_id||"Maschine");
+ const num=(n.match(/\b0?([0-9]{1,2})\b/)||[])[1]||"";
+ const low=n.toLowerCase();
+ if(low.includes("dreh"))return "Dreh"+(num?" "+num:"");
+ if(low.includes("mess"))return "Mess"+(num?" "+num:"");
+ if(low.includes("montage"))return "Montage"+(num?" "+num:"");
+ if(low.includes("laser"))return "Laser"+(num?" "+num:"");
+ if(low.includes("baz"))return "BAZ"+(num?" "+num:"");
+ const base=n.split(" – ")[0].split(" - ")[0];
+ return base.length>12?base.slice(0,12):base;
 }
 function labelValueForMachine(m,mode){
  const x=liveMetricsForMachine(m);
@@ -382,7 +390,8 @@ function labelValueForMachine(m,mode){
  return x.status;
 }
 function miniGauge(stage){
- return ["○","◔","◑","◕","●"][Math.max(1,Math.min(5,stage))-1];
+ const n=Math.max(1,Math.min(5,stage));
+ return "▰".repeat(n)+"▱".repeat(5-n);
 }
 function labelColor(m,mode){return colorForMachine(m,mode)||VIEW_COLORS.lightGreen}
 async function clearLegacyMachineIcons(){
@@ -394,19 +403,30 @@ async function clearLegacyMachineIcons(){
  }catch(e){}
 }
 
-async function clearMachineLabels(){
- if(!API||!API.markup){labelMarkupIds=[];return}
- const ids=new Set(labelMarkupIds);
+
+function isOurMachineLabelText(text){
+ const t=String(text||"");
+ return rows.some(m=>{
+   const short=shortMachineName(m);
+   const full=String(m.machine_name||"");
+   return t.startsWith(short+"  ")||t.startsWith(short+"   ")||t.startsWith(full+"\n")||t.startsWith(full+" ");
+ });
+}
+async function cleanupStaleMachineLabels(){
+ if(!API||!API.markup||labelsCleaned)return;
  try{
    const existing=await API.markup.getTextMarkups();
-   for(const m of (existing||[])){
-     const id=Number(m&&m.id);
-     if(id>=880000&&id<881000)ids.add(id);
-   }
+   const ids=(existing||[]).filter(m=>m&&m.id!==undefined&&isOurMachineLabelText(m.text)).map(m=>m.id);
+   if(ids.length)await API.markup.removeMarkups(ids);
  }catch(e){}
- const remove=[...ids];
- if(remove.length){try{await API.markup.removeMarkups(remove)}catch(e){}}
- labelMarkupIds=[];
+ labelMarkupMap=new Map();
+ labelsCleaned=true;
+}
+async function clearMachineLabels(){
+ if(!API||!API.markup){labelMarkupMap=new Map();return}
+ const ids=[...labelMarkupMap.values()].filter(id=>id!==undefined&&id!==null);
+ if(ids.length){try{await API.markup.removeMarkups(ids)}catch(e){}}
+ labelMarkupMap=new Map();
 }
 async function ensureLabelPosition(objectId,mapping,force=false){
  if(labelPositionMap.has(objectId)&&!force)return labelPositionMap.get(objectId);
@@ -415,16 +435,16 @@ async function ensureLabelPosition(objectId,mapping,force=false){
    const b=boxes&&boxes[0]&&boxes[0].boundingBox;
    if(!b||!b.min||!b.max)return null;
    const h=Math.max(.1,Number(b.max.z)-Number(b.min.z));
-   const p={x:(Number(b.min.x)+Number(b.max.x))/2,y:(Number(b.min.y)+Number(b.max.y))/2,zTop:Number(b.max.z),zText:Number(b.max.z)+Math.max(.65,h*.22)};
+   const p={x:(Number(b.min.x)+Number(b.max.x))/2,y:(Number(b.min.y)+Number(b.max.y))/2,zTop:Number(b.max.z),zText:Number(b.max.z)+Math.max(.28,h*.08)};
    labelPositionMap.set(objectId,p);return p;
  }catch(e){return null}
 }
-
 async function updateMachineLabels(forcePositions=false){
  if(!API||labelApplyBusy)return;
  labelApplyBusy=true;
  try{
    await clearLegacyMachineIcons();
+   await cleanupStaleMachineLabels();
 
    if(labelMode==="none"){
      await clearMachineLabels();
@@ -435,7 +455,7 @@ async function updateMachineLabels(forcePositions=false){
    const mode=gaugeModeForViewer();
    if(!mode){
      await clearMachineLabels();
-     el("labelHint").textContent="Wähle oben Temperatur, Betriebsstatus, Qualität oder Auslastung – erst dann erscheinen die Anzeigen über den Maschinen.";
+     el("labelHint").textContent="Wähle oben Temperatur, Betriebsstatus, Qualität oder Auslastung – erst dann erscheinen die Anzeigen.";
      return;
    }
 
@@ -445,18 +465,21 @@ async function updateMachineLabels(forcePositions=false){
    }
 
    await discoverMachineRuntimeMap(forcePositions);
-   await clearMachineLabels();
 
-   const markups=[],ids=[];let idx=0;
+   const items=[];
+   const offsets=[[-.28,.12],[.28,.12],[-.28,-.12],[.28,-.12],[0,.22],[0,-.22]];
+   let idx=0;
    for(const m of rows){
      const map=machineRuntimeMap.get(m.object_id);if(!map)continue;
      const p=await ensureLabelPosition(m.object_id,map,forcePositions);if(!p)continue;
-     const id=880000+idx++;
+
      const stage=stageForMachine(m,mode);
-     const text=shortMachineName(m)+"   "+miniGauge(stage)+"   "+labelValueForMachine(m,mode);
-     markups.push({
-       id,
-       text,
+     const value=labelValueForMachine(m,mode);
+     const existingId=labelMarkupMap.get(m.object_id);
+     const off=offsets[idx%offsets.length];idx++;
+
+     const markup={
+       text:shortMachineName(m)+"  "+miniGauge(stage)+"  "+value,
        color:labelColor(m,mode),
        start:{
          type:"point",
@@ -469,19 +492,24 @@ async function updateMachineLabels(forcePositions=false){
        },
        end:{
          type:"point",
-         positionX:p.x*1000,
-         positionY:p.y*1000,
+         positionX:(p.x+off[0])*1000,
+         positionY:(p.y+off[1])*1000,
          positionZ:p.zText*1000
        }
-     });
-     ids.push(id);
+     };
+     if(existingId!==undefined&&existingId!==null)markup.id=existingId;
+     items.push({objectId:m.object_id,markup});
    }
 
-   if(markups.length)await API.markup.addTextMarkup(markups);
-   labelMarkupIds=ids;
+   if(items.length){
+     const returned=await API.markup.addTextMarkup(items.map(x=>x.markup));
+     (returned||[]).forEach((m,i)=>{
+       if(m&&m.id!==undefined&&items[i])labelMarkupMap.set(items[i].objectId,m.id);
+     });
+   }
 
    const names={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung"};
-   el("labelHint").textContent="Kompakt · "+markups.length+" Maschine(n) · "+names[mode]+" · Live-Refresh 3 s.";
+   el("labelHint").textContent="Kompakt · "+items.length+" Maschine(n) · "+names[mode]+" · Live-Refresh 3 s.";
  }catch(e){
    el("labelHint").textContent="3D-Anzeigen konnten nicht erzeugt werden: "+((e&&e.message)||String(e));
  }finally{
@@ -633,7 +661,7 @@ async function handleSelection(args){
 }
 
 async function init(){
- try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a);if(e==="viewer.onModelStateChanged"){machineRuntimeMap=new Map();labelPositionMap=new Map();if(labelMode!=="none")await updateMachineLabels(true)}},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()});await updateMachineLabels(true);startColorLoop()}
+ try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a);if(e==="viewer.onModelStateChanged"){await clearMachineLabels();machineRuntimeMap=new Map();labelPositionMap=new Map();labelsCleaned=false;if(labelMode!=="none")await updateMachineLabels(true)}},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()});await cleanupStaleMachineLabels();await updateMachineLabels(true);startColorLoop()}
  catch(e){el("notice").textContent="Startfehler: "+e.message}
 }
 
