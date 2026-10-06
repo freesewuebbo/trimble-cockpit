@@ -215,18 +215,77 @@ function pt(x,y,z){return{positionX:x,positionY:y,positionZ:z}}
 function rotPoint(x,y,cx,cy,a){const c=Math.cos(a),s=Math.sin(a),dx=x-cx,dy=y-cy;return[cx+dx*c-dy*s,cy+dx*s+dy*c]}
 async function clearPreview(){if(previewIds.length){try{await API.markup.removeMarkups(previewIds)}catch(e){log('Markup cleanup: '+e.message)}previewIds=[]}for(const [id,m] of machineMap){try{await API.viewer.setObjectState({modelObjectIds:[{modelId:m.modelId,objectRuntimeIds:[m.runtimeId]}]},{visible:'reset',color:'reset'})}catch(e){}}previewOn=false;el('previewN').textContent='0'}
 async function preview(){
- await clearPreview();const lines=[],texts=[];let count=0;
- for(const m of MACHINES){const mm=machineMap.get(m.id),p=plan[m.id];if(!mm||!changed(p)||!mm.box)continue;count++;await API.viewer.setObjectState({modelObjectIds:[{modelId:mm.modelId,objectRuntimeIds:[mm.runtimeId]}]},{visible:false});
-  const b=mm.box,min=b.min,max=b.max,s=boxScaleToMm(b),dx=p.dx/s,dy=p.dy/s,dz=p.dz/s;
-  const cx=(min.x+max.x)/2+dx,cy=(min.y+max.y)/2+dy,cz0=min.z+dz,cz1=max.z+dz,a=rad(p.rot);
-  const base=[[min.x+dx,min.y+dy],[max.x+dx,min.y+dy],[max.x+dx,max.y+dy],[min.x+dx,max.y+dy]].map(q=>rotPoint(q[0],q[1],cx,cy,a));
-  const top=base.map(q=>[q[0],q[1]]);const color={r:3,g:158,b:210,a:255};
-  for(let i=0;i<4;i++){const j=(i+1)%4;lines.push({start:pt(base[i][0],base[i][1],cz0),end:pt(base[j][0],base[j][1],cz0),color});lines.push({start:pt(top[i][0],top[i][1],cz1),end:pt(top[j][0],top[j][1],cz1),color});lines.push({start:pt(base[i][0],base[i][1],cz0),end:pt(top[i][0],top[i][1],cz1),color})}
-  const labelLift=350/s;
-  texts.push({start:pt(cx,cy,cz1+labelLift),end:pt(cx+1/s,cy+1/s,cz1+labelLift),text:m.name+' | dX '+fmt(p.dx)+' | dY '+fmt(p.dy)+' | R '+fmt(p.rot)+'°',color});
+ await clearPreview();
+ const lines=[],texts=[],changedMachines=[];
+ let count=0;
+ for(const m of MACHINES){
+  const mm=machineMap.get(m.id),p=plan[m.id];
+  if(!mm||!changed(p)||!mm.box)continue;
+  count++;
+  const b=mm.box,s=boxScaleToMm(b);
+  const min={x:b.min.x*s,y:b.min.y*s,z:b.min.z*s};
+  const max={x:b.max.x*s,y:b.max.y*s,z:b.max.z*s};
+  const cx=(min.x+max.x)/2+p.dx,cy=(min.y+max.y)/2+p.dy;
+  const cz0=min.z+p.dz,cz1=max.z+p.dz,a=rad(p.rot);
+  const base=[
+   [min.x+p.dx,min.y+p.dy],
+   [max.x+p.dx,min.y+p.dy],
+   [max.x+p.dx,max.y+p.dy],
+   [min.x+p.dx,max.y+p.dy]
+  ].map(q=>rotPoint(q[0],q[1],cx,cy,a));
+  const top=base.map(q=>[q[0],q[1]]);
+  const color={r:3,g:158,b:210,a:255};
+  for(let i=0;i<4;i++){
+   const j=(i+1)%4;
+   lines.push({start:pt(base[i][0],base[i][1],cz0),end:pt(base[j][0],base[j][1],cz0),color});
+   lines.push({start:pt(top[i][0],top[i][1],cz1),end:pt(top[j][0],top[j][1],cz1),color});
+   lines.push({start:pt(base[i][0],base[i][1],cz0),end:pt(top[i][0],top[i][1],cz1),color});
+  }
+  texts.push({
+   start:pt(cx,cy,cz1+350),
+   end:pt(cx+1,cy+1,cz1+350),
+   text:m.name+' | dX '+fmt(p.dx)+' | dY '+fmt(p.dy)+' | R '+fmt(p.rot)+'°',
+   color
+  });
+  changedMachines.push(mm);
  }
- try{if(lines.length){const added=await API.markup.addLineMarkups(lines);previewIds.push(...(added||[]).map(x=>x.id).filter(x=>x!==undefined));}if(texts.length){const added=await API.markup.addTextMarkup(texts);previewIds.push(...(added||[]).map(x=>x.id).filter(x=>x!==undefined));}previewOn=true;el('previewN').textContent=String(count);log('Vorschau: '+count+' veraenderte Maschine(n), '+lines.length+' Linien');notice('Vorschau aktiv: Originale der veraenderten Maschinen sind ausgeblendet; die blauen 3D-Huellen zeigen die geplante Lage.','warn')}
- catch(e){notice('Vorschau konnte nicht aufgebaut werden: '+e.message,'bad');log('Preview FEHLER: '+e.message)}
+ try{
+  if(!lines.length){
+   previewOn=false;el('previewN').textContent='0';
+   notice('Keine veraenderten Maschinen fuer die Vorschau.');
+   return;
+  }
+  const addedLines=await API.markup.addLineMarkups(lines);
+  if(!addedLines||!addedLines.length)throw new Error('Trimble hat keine 3D-Linien fuer die Vorschau erzeugt.');
+  previewIds.push(...addedLines.map(x=>x.id).filter(x=>x!==undefined));
+  if(texts.length){
+   const addedText=await API.markup.addTextMarkup(texts);
+   if(addedText?.length)previewIds.push(...addedText.map(x=>x.id).filter(x=>x!==undefined));
+  }
+  for(const mm of changedMachines){
+   await API.viewer.setObjectState(
+    {modelObjectIds:[{modelId:mm.modelId,objectRuntimeIds:[mm.runtimeId]}]},
+    {visible:false}
+   );
+  }
+  previewOn=true;el('previewN').textContent=String(count);
+  log('Vorschau OK: '+count+' Maschine(n), '+lines.length+' Linien in mm erzeugt');
+  notice('Vorschau aktiv: Die blauen 3D-Huellen zeigen die geplante Lage. Originalmaschinen wurden erst nach erfolgreichem Aufbau ausgeblendet.','warn');
+ }catch(e){
+  try{if(previewIds.length)await API.markup.removeMarkups(previewIds)}catch(_){}
+  previewIds=[];
+  for(const mm of changedMachines){
+   try{
+    await API.viewer.setObjectState(
+     {modelObjectIds:[{modelId:mm.modelId,objectRuntimeIds:[mm.runtimeId]}]},
+     {visible:'reset'}
+    );
+   }catch(_){}
+  }
+  previewOn=false;el('previewN').textContent='0';
+  notice('Vorschau fehlgeschlagen - Originalmaschinen bleiben sichtbar: '+e.message,'bad');
+  log('Preview FEHLER: '+e.message);
+ }
 }
 async function showOriginals(){await clearPreview();notice('Originalmaschinen wieder sichtbar. Planungsdaten bleiben erhalten.');}
 function replaceEntity(text,id,body){const re=new RegExp('^#'+id+'=.*;$','m');if(!re.test(text))throw new Error('IFC-Entity #'+id+' nicht gefunden');return text.replace(re,'#'+id+'='+body+';')}
