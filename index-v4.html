@@ -112,7 +112,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
       <button class="labelModeBtn" data-label-mode="none">Aus</button>
       <button class="labelModeBtn active" data-label-mode="gauge">Name + Tacho</button>
     </div>
-    <div id="labelHint" class="labelHint">Name + Tacho: Erst nach Auswahl eines Farbmodus wird je Maschine eine kompakte Live-Anzeige eingeblendet.</div>
+    <div id="labelHint" class="labelHint">Name + Tacho: zoomabhängig – nah mit Wert, mittig kompakt, in der Hallenübersicht nur die ausgewählte Maschine.</div>
   </div>
 </div>
 
@@ -227,7 +227,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 <script>
 let API=null,rows=[],current=null,currentObjectId="",currentModelId="",tempHistory=[],liveTimer=null,colorTimer=null;
 const DEMO_INTERVAL_MS=3000;
-let colorMode="none",labelMode="gauge",machineRuntimeMap=new Map(),colorApplyBusy=false,labelApplyBusy=false,labelPositionMap=new Map(),labelMarkupMap=new Map(),labelsCleaned=false;
+let colorMode="none",labelMode="gauge",machineRuntimeMap=new Map(),colorApplyBusy=false,labelApplyBusy=false,labelPositionMap=new Map(),labelMarkupMap=new Map(),labelsCleaned=false,labelZoomProfile="near",cameraLabelTimer=null;
 const VIEW_COLORS={
   darkGreen:{r:46,g:125,b:50,a:255},
   lightGreen:{r:124,g:179,b:66,a:255},
@@ -405,6 +405,60 @@ async function clearLegacyMachineIcons(){
 
 
 
+
+function sceneStatsFromPositions(){
+ const pts=[...labelPositionMap.values()];
+ if(!pts.length)return null;
+ const center=pts.reduce((a,p)=>({x:a.x+p.x,y:a.y+p.y,z:a.zTop+p.zTop}),{x:0,y:0,z:0});
+ center.x/=pts.length;center.y/=pts.length;center.z/=pts.length;
+ let radius=0;
+ for(const p of pts){
+   const dx=p.x-center.x,dy=p.y-center.y,dz=p.zTop-center.z;
+   radius=Math.max(radius,Math.sqrt(dx*dx+dy*dy+dz*dz));
+ }
+ return {center,radius:Math.max(2,radius)};
+}
+function zoomProfileFromCamera(camera){
+ const stats=sceneStatsFromPositions();
+ if(!stats||!camera)return "near";
+ const pos=camera.position;
+ if(pos&&Number.isFinite(Number(pos.x))&&Number.isFinite(Number(pos.y))&&Number.isFinite(Number(pos.z))){
+   const dx=Number(pos.x)-stats.center.x,dy=Number(pos.y)-stats.center.y,dz=Number(pos.z)-stats.center.z;
+   const ratio=Math.sqrt(dx*dx+dy*dy+dz*dz)/stats.radius;
+   if(ratio>4.2)return "far";
+   if(ratio>2.7)return "medium";
+   return "near";
+ }
+ if(camera.projectionType==="ortho"&&Number.isFinite(Number(camera.orthoSize))){
+   const ratio=Number(camera.orthoSize)/(stats.radius*2);
+   if(ratio>2.2)return "far";
+   if(ratio>1.4)return "medium";
+ }
+ return "near";
+}
+function labelTextForProfile(m,mode,stage,profile){
+ const name=shortMachineName(m),gauge=miniGauge(stage),value=labelValueForMachine(m,mode);
+ if(profile==="far")return name+"  "+gauge+"  "+value;
+ if(profile==="medium")return name+"  "+gauge;
+ return name+"  "+gauge+"  "+value;
+}
+function zoomProfileLabel(profile){
+ return profile==="far"?"Übersicht":profile==="medium"?"Kompakt":"Detail";
+}
+function scheduleAdaptiveLabelUpdate(){
+ if(cameraLabelTimer)clearTimeout(cameraLabelTimer);
+ cameraLabelTimer=setTimeout(async()=>{
+   if(!API||labelMode==="none"||colorMode==="none")return;
+   try{
+     const camera=await API.viewer.getCamera();
+     const next=zoomProfileFromCamera(camera);
+     if(next!==labelZoomProfile){
+       labelZoomProfile=next;
+       await updateMachineLabels(false,true);
+     }
+   }catch(e){}
+ },280);
+}
 function isOurMachineLabelText(text){
  const t=String(text||"");
  if(t.startsWith(LABEL_TAG))return true;
@@ -449,7 +503,8 @@ async function ensureLabelPosition(objectId,mapping,force=false){
  }catch(e){return null}
 }
 
-async function updateMachineLabels(forcePositions=false){
+
+async function updateMachineLabels(forcePositions=false,profileAlreadySet=false){
  if(!API||labelApplyBusy)return;
  labelApplyBusy=true;
  try{
@@ -476,22 +531,38 @@ async function updateMachineLabels(forcePositions=false){
 
    await discoverMachineRuntimeMap(forcePositions);
 
-   // Robust against Trimble assigning new markup IDs: remove the previous set before drawing the next one.
-   await removeOurMachineLabelsFromViewer();
-
-   const markups=[],objectIds=[];
-   const offsets=[[-.16,.08],[.16,.08],[-.16,-.08],[.16,-.08],[0,.14],[0,-.14]];
-   let idx=0;
+   const candidates=[];
    for(const m of rows){
      const map=machineRuntimeMap.get(m.object_id);if(!map)continue;
      const p=await ensureLabelPosition(m.object_id,map,forcePositions);if(!p)continue;
+     candidates.push({m,map,p});
+   }
+
+   if(!profileAlreadySet){
+     try{
+       const camera=await API.viewer.getCamera();
+       labelZoomProfile=zoomProfileFromCamera(camera);
+     }catch(e){}
+   }
+
+   await removeOurMachineLabelsFromViewer();
+
+   const markups=[],objectIds=[];
+   const offsets=[[-.12,.06],[.12,.06],[-.12,-.06],[.12,-.06],[0,.10],[0,-.10]];
+   let idx=0;
+   for(const item of candidates){
+     const {m,map,p}=item;
+     const selected=m.object_id===currentObjectId;
+
+     // Hall overview: colors carry the overview; keep only the selected machine readable.
+     if(labelZoomProfile==="far"&&!selected)continue;
 
      const stage=stageForMachine(m,mode);
-     const value=labelValueForMachine(m,mode);
      const off=offsets[idx%offsets.length];idx++;
+     const text=LABEL_TAG+labelTextForProfile(m,mode,stage,labelZoomProfile);
 
      markups.push({
-       text:LABEL_TAG+shortMachineName(m)+"  "+miniGauge(stage)+"  "+value,
+       text,
        color:labelColor(m,mode),
        start:{
          type:"point",
@@ -520,7 +591,7 @@ async function updateMachineLabels(forcePositions=false){
    }
 
    const names={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung"};
-   el("labelHint").textContent="Kompakt · "+markups.length+" Maschine(n) · "+names[mode]+" · Live-Refresh 3 s.";
+   el("labelHint").textContent=zoomProfileLabel(labelZoomProfile)+" · "+markups.length+" Anzeige(n) · "+names[mode]+" · Live 3 s.";
  }catch(e){
    el("labelHint").textContent="3D-Anzeigen konnten nicht erzeugt werden: "+((e&&e.message)||String(e));
  }finally{
@@ -668,17 +739,17 @@ async function handleSelection(args){
  try{const ids=await API.viewer.convertToObjectIds(f.modelId,[rid]);oid=ids?.[0]||""}catch(e){}
  try{const p=await API.viewer.getObjectProperties(f.modelId,[rid]);name=p?.[0]?.product?.name||name}catch(e){}
  currentObjectId=oid;if(currentModelId!==f.modelId){currentModelId=f.modelId||"";machineRuntimeMap=new Map();labelPositionMap=new Map()}el("modelId").textContent=f.modelId||"–";el("objectId").textContent=oid||"–";el("objectName").textContent=name;
- const m=machineById(oid);if(m)renderStatic(m);else disableMachine('"'+name+'" ist kein registriertes Maschinenobjekt. Für dieses Bauteil werden bewusst keine Maschinen-KPIs angezeigt.');
+ const m=machineById(oid);if(m)renderStatic(m);else disableMachine('"'+name+'" ist kein registriertes Maschinenobjekt. Für dieses Bauteil werden bewusst keine Maschinen-KPIs angezeigt.');if(labelZoomProfile==="far"&&labelMode!=="none"&&colorMode!=="none")await updateMachineLabels(false,true);
 }
 
 async function init(){
- try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a);if(e==="viewer.onModelStateChanged"){await clearMachineLabels();machineRuntimeMap=new Map();labelPositionMap=new Map();labelsCleaned=false;if(labelMode!=="none")await updateMachineLabels(true)}},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()});await cleanupStaleMachineLabels();await updateMachineLabels(true);startColorLoop()}
+ try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a);if(e==="viewer.onCameraChanged")scheduleAdaptiveLabelUpdate();if(e==="viewer.onModelStateChanged"){await clearMachineLabels();machineRuntimeMap=new Map();labelPositionMap=new Map();labelsCleaned=false;labelZoomProfile="near";if(labelMode!=="none")await updateMachineLabels(true)}},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()});await cleanupStaleMachineLabels();await updateMachineLabels(true);startColorLoop()}
  catch(e){el("notice").textContent="Startfehler: "+e.message}
 }
 
 document.querySelectorAll("[data-color-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
  document.querySelectorAll("[data-color-mode]").forEach(b=>b.classList.remove("active"));
- btn.classList.add("active");colorMode=btn.dataset.colorMode;updateColorLegend(colorMode);await clearMachineLabels();await applyColorMode(true);await updateMachineLabels(false);
+ btn.classList.add("active");colorMode=btn.dataset.colorMode;updateColorLegend(colorMode);await clearMachineLabels();await applyColorMode(true);await updateMachineLabels(false,false);
 }));
 
 document.querySelectorAll("[data-label-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
@@ -687,7 +758,7 @@ document.querySelectorAll("[data-label-mode]").forEach(btn=>btn.addEventListener
  if(labelMode==="none")el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";
  else el("labelHint").textContent=colorMode==="none"?"Wähle zuerst einen Farbmodus.":"Kompakte Maschinenanzeigen werden aufgebaut …";
  await clearMachineLabels();
- await updateMachineLabels(false);
+ await updateMachineLabels(false,false);
 }));
 updateColorLegend("none");
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});el("modal").addEventListener("click",e=>{if(e.target===el("modal"))closeModal()});init();
