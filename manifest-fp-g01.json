@@ -1,0 +1,7 @@
+{
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-fp-g01.html?build=20261006-g01",
+  "title": "LEANNOVA Factory Planner FP-G01 - Gate 1",
+  "description": "Technischer Gate-Test fuer Modellplatzierung: Maschine als separates Modell verschieben, drehen, Zielpunkt setzen und Roundtrip-Latenz messen.",
+  "extensionType": ["3dviewer"],
+  "type": "panel"
+}
