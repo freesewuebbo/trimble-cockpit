@@ -88,13 +88,13 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 <div class="shell">
 <header>
  <div class="brandrow">
-   <div class="brandbox"><img id="brandLogo"><div class="titlebox"><div class="title">Maschinen-Cockpit</div><div class="subtitle">Digital Twin · Live-Daten · Qualität · Wartung · <b>Spatial Live V4</b></div></div></div>
+   <div class="brandbox"><img id="brandLogo"><div class="titlebox"><div class="title">Maschinen-Cockpit</div><div class="subtitle">Digital Twin · Live-Daten · Qualität · Wartung · <b>Spatial Labels V4</b></div></div></div>
    <div class="livehead"><span class="pulse"></span><span>LIVE · <b id="headTime">–</b></span></div>
  </div>
 </header>
 <main>
 <div id="notice" class="notice">Verbinde mit Trimble Connect …</div>
-<div style="display:flex;justify-content:flex-end;margin:-3px 0 7px"><span class="v3Badge">SPATIAL LIVE V4</span></div>
+<div style="display:flex;justify-content:flex-end;margin:-3px 0 7px"><span class="v3Badge">SPATIAL LABELS V4</span></div>
 <div class="colorToolbar">
   <div class="colorTitle">Farbmodus im 3D-Modell</div>
   <div class="colorModes" id="colorModes">
@@ -110,9 +110,9 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
     <div class="labelTitle">3D-Statusanzeigen über Maschinen</div>
     <div class="labelModes" id="labelModes">
       <button class="labelModeBtn" data-label-mode="none">Aus</button>
-      <button class="labelModeBtn active" data-label-mode="gauge">Tacho</button>
+      <button class="labelModeBtn active" data-label-mode="gauge">Name + Tacho</button>
     </div>
-    <div id="labelHint" class="labelHint">Tacho: Anzeige über jeder Maschine folgt automatisch dem aktuell gewählten Farbmodus.</div>
+    <div id="labelHint" class="labelHint">Name + Tacho: Maschinenname, 5-stufige Tachoanzeige und Live-Wert direkt über jeder Maschine.</div>
   </div>
 </div>
 
@@ -227,7 +227,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 <script>
 let API=null,rows=[],current=null,currentObjectId="",currentModelId="",tempHistory=[],liveTimer=null,colorTimer=null;
 const DEMO_INTERVAL_MS=3000;
-let colorMode="none",labelMode="gauge",machineRuntimeMap=new Map(),colorApplyBusy=false,labelApplyBusy=false,labelIcons=[],labelPositionMap=new Map(),labelIconMap=new Map();
+let colorMode="none",labelMode="gauge",machineRuntimeMap=new Map(),colorApplyBusy=false,labelApplyBusy=false,labelPositionMap=new Map(),labelMarkupIds=[];
 const VIEW_COLORS={
   darkGreen:{r:46,g:125,b:50,a:255},
   lightGreen:{r:124,g:179,b:66,a:255},
@@ -351,11 +351,10 @@ function updateColorLegend(mode){
 
 
 
+
 function stageForMachine(m,mode){
  const x=liveMetricsForMachine(m);
- if(mode==="temperature"){
-   if(x.temp>=55)return 5;if(x.temp>=48)return 4;if(x.temp>=42)return 3;if(x.temp>=35)return 2;return 1;
- }
+ if(mode==="temperature"){if(x.temp>=55)return 5;if(x.temp>=48)return 4;if(x.temp>=42)return 3;if(x.temp>=35)return 2;return 1}
  if(mode==="status"){
    const st=String(x.status||"").toLowerCase();
    if(st.includes("störung")||st.includes("stillstand")||st.includes("kritisch"))return 5;
@@ -364,78 +363,78 @@ function stageForMachine(m,mode){
    if(st.includes("bereit")||st.includes("prüf")||st.includes("pruef"))return 2;
    return 1;
  }
- if(mode==="quality"){
-   if(x.issues>=4||x.quality<95)return 5;
-   if(x.issues>=2||x.quality<97)return 4;
-   if(x.issues>=1||x.quality<98)return 3;
-   if(x.quality<99)return 2;
-   return 1;
- }
- if(mode==="utilization"){
-   if(x.util>=95)return 5;
-   if(x.util>=85)return 4;
-   if(x.util>=75)return 3;
-   if(x.util>=55)return 1;
-   return 2;
- }
+ if(mode==="quality"){if(x.issues>=4||x.quality<95)return 5;if(x.issues>=2||x.quality<97)return 4;if(x.issues>=1||x.quality<98)return 3;if(x.quality<99)return 2;return 1}
+ if(mode==="utilization"){if(x.util>=95)return 5;if(x.util>=85)return 4;if(x.util>=75)return 3;if(x.util>=55)return 1;return 2}
  return 1;
 }
-function gaugeModeForViewer(){
- return colorMode==="none"?"status":colorMode;
+function gaugeModeForViewer(){return colorMode==="none"?"status":colorMode}
+function labelValueForMachine(m,mode){
+ const x=liveMetricsForMachine(m);
+ if(mode==="temperature")return x.temp.toFixed(1)+" °C";
+ if(mode==="quality")return x.quality.toFixed(1)+" %";
+ if(mode==="utilization")return Math.round(x.util)+" %";
+ return x.status;
 }
-function gaugeIconUrl(m){
- const mode=gaugeModeForViewer(),stage=stageForMachine(m,mode);
- return "https://freesewuebbo.github.io/trimble-cockpit/assets/gauges/"+mode+"-"+stage+".svg?v=2";
+function labelModeTitle(mode){return ({temperature:"TEMP",status:"STATUS",quality:"QUALITÄT",utilization:"AUSLASTUNG"})[mode]||"STATUS"}
+function gaugeBar(stage){
+ const n=Math.max(0,Math.min(5,stage));
+ return "▰".repeat(n)+"▱".repeat(5-n);
+}
+function labelColor(m,mode){return colorForMachine(m,mode)||VIEW_COLORS.lightGreen}
+async function clearLegacyMachineIcons(){
+ if(!API)return;
+ try{
+   const icons=await API.viewer.getIcon();
+   const ours=(icons||[]).filter(i=>Number(i&&i.id)>=760000&&Number(i&&i.id)<761000);
+   if(ours.length)await API.viewer.removeIcon(ours);
+ }catch(e){}
 }
 async function clearMachineLabels(){
- if(!API||!labelIcons.length){labelIcons=[];labelIconMap=new Map();return}
- try{await API.viewer.removeIcon(labelIcons)}catch(e){}
- labelIcons=[];labelIconMap=new Map();
+ if(!API||!API.markup){labelMarkupIds=[];return}
+ if(labelMarkupIds.length){try{await API.markup.removeMarkups(labelMarkupIds)}catch(e){}}
+ labelMarkupIds=[];
 }
 async function ensureLabelPosition(objectId,mapping,force=false){
  if(labelPositionMap.has(objectId)&&!force)return labelPositionMap.get(objectId);
  try{
    const boxes=await API.viewer.getObjectBoundingBoxes(mapping.modelId,[mapping.runtimeId]);
-   const b=boxes?.[0]?.boundingBox;if(!b?.min||!b?.max)return null;
-   const height=Math.max(.1,Number(b.max.z)-Number(b.min.z));
-   const p={x:(Number(b.min.x)+Number(b.max.x))/2,y:(Number(b.min.y)+Number(b.max.y))/2,z:Number(b.max.z)+Math.max(.35,height*.12)};
+   const b=boxes&&boxes[0]&&boxes[0].boundingBox;
+   if(!b||!b.min||!b.max)return null;
+   const h=Math.max(.1,Number(b.max.z)-Number(b.min.z));
+   const p={x:(Number(b.min.x)+Number(b.max.x))/2,y:(Number(b.min.y)+Number(b.max.y))/2,zTop:Number(b.max.z),zText:Number(b.max.z)+Math.max(.65,h*.22)};
    labelPositionMap.set(objectId,p);return p;
  }catch(e){return null}
 }
-
 async function updateMachineLabels(forcePositions=false){
  if(!API||labelApplyBusy)return;
  labelApplyBusy=true;
  try{
-   if(labelMode==="none"){
-     await clearMachineLabels();
-     el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";
-     return;
-   }
+   await clearLegacyMachineIcons();
+   if(labelMode==="none"){await clearMachineLabels();el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";return}
+   if(!API.markup||!API.markup.addTextMarkup){el("labelHint").textContent="Textanzeigen werden von dieser Viewer-Version nicht unterstützt.";return}
    await discoverMachineRuntimeMap(forcePositions);
-   const newIcons=[],newMap=new Map();let idx=0;
+   const mode=gaugeModeForViewer(),markups=[],ids=[];let idx=0;
    for(const m of rows){
      const map=machineRuntimeMap.get(m.object_id);if(!map)continue;
-     const position=await ensureLabelPosition(m.object_id,map,forcePositions);if(!position)continue;
-     const id=760000+idx++;
-     const icon={id,position,iconPath:gaugeIconUrl(m),size:72};
-     newIcons.push(icon);newMap.set(id,{machine:m,mapping:map});
+     const p=await ensureLabelPosition(m.object_id,map,forcePositions);if(!p)continue;
+     const id=880000+idx++,stage=stageForMachine(m,mode),color=labelColor(m,mode),value=labelValueForMachine(m,mode);
+     const text=(m.machine_name||m.machine_id||"Maschine")+"\n"+labelModeTitle(mode)+"  "+gaugeBar(stage)+"  "+value;
+     markups.push({
+       id,text,color,
+       start:{type:"point",modelId:map.modelId,objectId:map.runtimeId,referenceObjectId:m.object_id,positionX:p.x*1000,positionY:p.y*1000,positionZ:p.zTop*1000},
+       end:{type:"point",positionX:p.x*1000,positionY:p.y*1000,positionZ:p.zText*1000}
+     });
+     ids.push(id);
    }
-   await clearMachineLabels();
-   if(newIcons.length)await API.viewer.addIcon(newIcons);
-   labelIcons=newIcons;labelIconMap=newMap;
-   const modeNames={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung",none:"Betriebsstatus"};
-   el("labelHint").textContent="Tacho · "+newIcons.length+" Maschine(n) · Anzeige: "+modeNames[colorMode]+" · Live-Refresh 3 s.";
+   const stale=labelMarkupIds.filter(id=>!ids.includes(id));
+   if(stale.length)try{await API.markup.removeMarkups(stale)}catch(e){}
+   if(markups.length)await API.markup.addTextMarkup(markups);
+   labelMarkupIds=ids;
+   const names={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung",none:"Betriebsstatus"};
+   el("labelHint").textContent="Name + Tacho · "+markups.length+" Maschine(n) · "+names[colorMode]+" · Live-Refresh 3 s.";
  }catch(e){
-   el("labelHint").textContent="3D-Tachos konnten im Viewer nicht erzeugt werden: "+e.message;
+   el("labelHint").textContent="3D-Anzeigen konnten nicht erzeugt werden: "+((e&&e.message)||String(e));
  }finally{labelApplyBusy=false}
-}
-async function handleLabelIconPicked(arg){
- const picked=(arg?.data||[])[0],target=picked?labelIconMap.get(picked.id):null;if(!target)return;
- try{
-   await API.viewer.setSelection({modelObjectIds:[{modelId:target.mapping.modelId,objectRuntimeIds:[target.mapping.runtimeId]}]},"set");
-   renderStatic(target.machine);
- }catch(e){}
 }
 async function discoverMachineRuntimeMap(force=false){
  if(!API)return;
@@ -582,7 +581,7 @@ async function handleSelection(args){
 }
 
 async function init(){
- try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a);if(e==="viewer.onIconPicked")await handleLabelIconPicked(a);if(e==="viewer.onModelStateChanged"){machineRuntimeMap=new Map();labelPositionMap=new Map();if(labelMode!=="none")await updateMachineLabels(true)}},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()});await updateMachineLabels(true);startColorLoop()}
+ try{await Promise.all([loadAssets(),loadCsv()]);API=await TrimbleConnectWorkspace.connect(window.parent,async(e,a)=>{if(e==="viewer.onSelectionChanged")await handleSelection(a);if(e==="viewer.onModelStateChanged"){machineRuntimeMap=new Map();labelPositionMap=new Map();if(labelMode!=="none")await updateMachineLabels(true)}},30000);el("notice").textContent="Verbunden · Bitte Maschinenobjekt auswählen";await handleSelection({data:await API.viewer.getSelection()});await updateMachineLabels(true);startColorLoop()}
  catch(e){el("notice").textContent="Startfehler: "+e.message}
 }
 
@@ -595,7 +594,7 @@ document.querySelectorAll("[data-label-mode]").forEach(btn=>btn.addEventListener
  document.querySelectorAll("[data-label-mode]").forEach(b=>b.classList.remove("active"));
  btn.classList.add("active");labelMode=btn.dataset.labelMode;
  if(labelMode==="none")el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";
- else el("labelHint").textContent="Tachos werden im 3D-Modell aufgebaut …";
+ else el("labelHint").textContent="Maschinenname + Tacho werden im 3D-Modell aufgebaut …";
  await updateMachineLabels(false);
 }));
 updateColorLegend("none");
