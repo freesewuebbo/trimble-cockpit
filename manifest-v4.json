@@ -1,7 +1,7 @@
 {
-  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-v4-spatial-labels-r2.html",
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-v4.html?v=spatial-labels-20261006-5",
   "title": "LEANNOVA Maschinen-Cockpit V4 Spatial Labels",
-  "description": "Digital-Twin-Demo mit 3D-Farbmodi sowie Maschinenname, 5-stufigem Tacho und Live-Wert direkt über den Maschinen",
+  "description": "Digital-Twin-Demo mit 3D-Farbmodi und kompakten, modeabhängigen Maschinenanzeigen",
   "extensionType": [
     "3dviewer"
   ],
