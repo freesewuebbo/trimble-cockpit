@@ -107,13 +107,12 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
   <div id="colorLegend" class="colorLegend"></div>
   <div id="colorHint" class="colorHint">Wähle einen Modus – alle registrierten Maschinen im geladenen Modell werden gleichzeitig eingefärbt.</div>
   <div class="labelControls">
-    <div class="labelTitle">3D-Maschinenlabels</div>
+    <div class="labelTitle">3D-Statusanzeigen über Maschinen</div>
     <div class="labelModes" id="labelModes">
       <button class="labelModeBtn" data-label-mode="none">Aus</button>
-      <button class="labelModeBtn active" data-label-mode="compact">Kompakt</button>
-      <button class="labelModeBtn" data-label-mode="live">Live</button>
+      <button class="labelModeBtn active" data-label-mode="gauge">Tacho</button>
     </div>
-    <div id="labelHint" class="labelHint">Kompakt: Maschinenname + aktuell ausgewählte Kennzahl direkt über dem 3D-Objekt.</div>
+    <div id="labelHint" class="labelHint">Tacho: Anzeige über jeder Maschine folgt automatisch dem aktuell gewählten Farbmodus.</div>
   </div>
 </div>
 
@@ -228,7 +227,7 @@ svg.spark{width:100%;height:92px;display:block}.alertList,.eventList{border:1px 
 <script>
 let API=null,rows=[],current=null,currentObjectId="",currentModelId="",tempHistory=[],liveTimer=null,colorTimer=null;
 const DEMO_INTERVAL_MS=3000;
-let colorMode="none",labelMode="compact",machineRuntimeMap=new Map(),colorApplyBusy=false,labelApplyBusy=false,labelIcons=[],labelPositionMap=new Map(),labelIconMap=new Map();
+let colorMode="none",labelMode="gauge",machineRuntimeMap=new Map(),colorApplyBusy=false,labelApplyBusy=false,labelIcons=[],labelPositionMap=new Map(),labelIconMap=new Map();
 const VIEW_COLORS={
   darkGreen:{r:46,g:125,b:50,a:255},
   lightGreen:{r:124,g:179,b:66,a:255},
@@ -351,34 +350,42 @@ function updateColorLegend(mode){
 }
 
 
-function escapeXml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]))}
-function rgbaToHex(c){return "#"+[c.r,c.g,c.b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("")}
-function primaryLabelMetric(m){
+
+function stageForMachine(m,mode){
  const x=liveMetricsForMachine(m);
- if(colorMode==="temperature")return x.temp.toFixed(1)+" °C";
- if(colorMode==="quality")return x.quality.toFixed(1)+" % Qualität";
- if(colorMode==="utilization")return Math.round(x.util)+" % Auslastung";
- if(colorMode==="status")return x.status;
- return x.status;
+ if(mode==="temperature"){
+   if(x.temp>=55)return 5;if(x.temp>=48)return 4;if(x.temp>=42)return 3;if(x.temp>=35)return 2;return 1;
+ }
+ if(mode==="status"){
+   const st=String(x.status||"").toLowerCase();
+   if(st.includes("störung")||st.includes("stillstand")||st.includes("kritisch"))return 5;
+   if(st.includes("wartung"))return 4;
+   if(st.includes("warn")||st.includes("rüst")||st.includes("ruest")||st.includes("kapazität")||st.includes("kapazitaet")||st.includes("hohe last"))return 3;
+   if(st.includes("bereit")||st.includes("prüf")||st.includes("pruef"))return 2;
+   return 1;
+ }
+ if(mode==="quality"){
+   if(x.issues>=4||x.quality<95)return 5;
+   if(x.issues>=2||x.quality<97)return 4;
+   if(x.issues>=1||x.quality<98)return 3;
+   if(x.quality<99)return 2;
+   return 1;
+ }
+ if(mode==="utilization"){
+   if(x.util>=95)return 5;
+   if(x.util>=85)return 4;
+   if(x.util>=75)return 3;
+   if(x.util>=55)return 1;
+   return 2;
+ }
+ return 1;
 }
-function labelAccentForMachine(m){
- const mode=colorMode==="none"?"status":colorMode;
- return rgbaToHex(colorForMachine(m,mode)||VIEW_COLORS.lightGreen);
+function gaugeModeForViewer(){
+ return colorMode==="none"?"status":colorMode;
 }
-function makeLabelSvg(m,mode){
- const x=liveMetricsForMachine(m),accent=labelAccentForMachine(m),name=escapeXml(m.machine_name||m.machine_id||"Maschine");
- const status=escapeXml(x.status),primary=escapeXml(primaryLabelMetric(m));
- const w=mode==="live"?286:230,h=mode==="live"?92:66;
- const body=mode==="live"
- ? '<text x="16" y="23" fill="#FFFFFF" font-family="Segoe UI,Arial" font-size="15" font-weight="700">'+name+'</text>'+
-   '<text x="16" y="47" fill="#E8F0F3" font-family="Segoe UI,Arial" font-size="12">'+status+'</text>'+
-   '<text x="16" y="72" fill="#FFFFFF" font-family="Segoe UI,Arial" font-size="14" font-weight="700">'+x.temp.toFixed(1)+' °C · '+Math.round(x.util)+' % · Q '+x.quality.toFixed(1)+' %</text>'
- : '<text x="15" y="23" fill="#FFFFFF" font-family="Segoe UI,Arial" font-size="14" font-weight="700">'+name+'</text>'+
-   '<text x="15" y="49" fill="#FFFFFF" font-family="Segoe UI,Arial" font-size="16" font-weight="800">'+primary+'</text>';
- const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'">'+
- '<rect x="1" y="1" width="'+(w-2)+'" height="'+(h-2)+'" rx="10" fill="#172126" fill-opacity=".92" stroke="'+accent+'" stroke-width="3"/>'+
- '<rect x="0" y="0" width="7" height="'+h+'" rx="4" fill="'+accent+'"/>'+body+'</svg>';
- return "data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg);
+function gaugeIconUrl(m){
+ const mode=gaugeModeForViewer(),stage=stageForMachine(m,mode);
+ return "https://freesewuebbo.github.io/trimble-cockpit/assets/gauges/"+mode+"-"+stage+".svg?v=2";
 }
 async function clearMachineLabels(){
  if(!API||!labelIcons.length){labelIcons=[];labelIconMap=new Map();return}
@@ -395,26 +402,32 @@ async function ensureLabelPosition(objectId,mapping,force=false){
    labelPositionMap.set(objectId,p);return p;
  }catch(e){return null}
 }
+
 async function updateMachineLabels(forcePositions=false){
  if(!API||labelApplyBusy)return;
  labelApplyBusy=true;
  try{
-   if(labelMode==="none"){await clearMachineLabels();el("labelHint").textContent="3D-Labels sind ausgeschaltet.";return}
+   if(labelMode==="none"){
+     await clearMachineLabels();
+     el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";
+     return;
+   }
    await discoverMachineRuntimeMap(forcePositions);
    const newIcons=[],newMap=new Map();let idx=0;
    for(const m of rows){
      const map=machineRuntimeMap.get(m.object_id);if(!map)continue;
      const position=await ensureLabelPosition(m.object_id,map,forcePositions);if(!position)continue;
-     const id=740000+idx++;
-     const icon={id,position,iconPath:makeLabelSvg(m,labelMode),size:labelMode==="live"?92:76};
+     const id=760000+idx++;
+     const icon={id,position,iconPath:gaugeIconUrl(m),size:72};
      newIcons.push(icon);newMap.set(id,{machine:m,mapping:map});
    }
    await clearMachineLabels();
    if(newIcons.length)await API.viewer.addIcon(newIcons);
    labelIcons=newIcons;labelIconMap=newMap;
-   el("labelHint").textContent=(labelMode==="live"?"Live":"Kompakt")+" · "+newIcons.length+" Maschinenlabel(s) · Aktualisierung alle 3 s.";
+   const modeNames={temperature:"Temperatur",status:"Betriebsstatus",quality:"Qualität",utilization:"Auslastung",none:"Betriebsstatus"};
+   el("labelHint").textContent="Tacho · "+newIcons.length+" Maschine(n) · Anzeige: "+modeNames[colorMode]+" · Live-Refresh 3 s.";
  }catch(e){
-   el("labelHint").textContent="3D-Labels konnten im Viewer nicht erzeugt werden: "+e.message;
+   el("labelHint").textContent="3D-Tachos konnten im Viewer nicht erzeugt werden: "+e.message;
  }finally{labelApplyBusy=false}
 }
 async function handleLabelIconPicked(arg){
@@ -581,8 +594,8 @@ document.querySelectorAll("[data-color-mode]").forEach(btn=>btn.addEventListener
 document.querySelectorAll("[data-label-mode]").forEach(btn=>btn.addEventListener("click",async()=>{
  document.querySelectorAll("[data-label-mode]").forEach(b=>b.classList.remove("active"));
  btn.classList.add("active");labelMode=btn.dataset.labelMode;
- if(labelMode==="none")el("labelHint").textContent="3D-Labels sind ausgeschaltet.";
- else el("labelHint").textContent=(labelMode==="live"?"Live":"Kompakt")+" wird im 3D-Modell aufgebaut …";
+ if(labelMode==="none")el("labelHint").textContent="3D-Statusanzeigen sind ausgeschaltet.";
+ else el("labelHint").textContent="Tachos werden im 3D-Modell aufgebaut …";
  await updateMachineLabels(false);
 }));
 updateColorLegend("none");
