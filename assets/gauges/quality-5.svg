@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="105" viewBox="0 0 160 105">
+<rect x="1.5" y="1.5" width="157" height="102" rx="14" fill="#172126" fill-opacity=".95" stroke="#E53935" stroke-width="3"/>
+<path d="M 28.03 74.19 A 52 52 0 0 1 36.89 46.92" fill="none" stroke="#2E7D32" stroke-width="12" stroke-linecap="round"/><path d="M 39.02 43.99 A 52 52 0 0 1 62.21 27.14" fill="none" stroke="#7CB342" stroke-width="12" stroke-linecap="round"/><path d="M 65.67 26.01 A 52 52 0 0 1 94.33 26.01" fill="none" stroke="#FDD835" stroke-width="12" stroke-linecap="round"/><path d="M 97.79 27.14 A 52 52 0 0 1 120.98 43.99" fill="none" stroke="#FB8C00" stroke-width="12" stroke-linecap="round"/><path d="M 123.11 46.92 A 52 52 0 0 1 131.97 74.19" fill="none" stroke="#E53935" stroke-width="12" stroke-linecap="round"/>
+<line x1="80" y1="76" x2="117.09" y2="63.95" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
+<circle cx="80" cy="76" r="7" fill="#FFFFFF"/><circle cx="80" cy="76" r="3" fill="#172126"/>
+<text x="80" y="26" text-anchor="middle" fill="#FFFFFF" font-family="Segoe UI,Arial,sans-serif" font-size="12" font-weight="700">QUALITÄT</text>
+<text x="80" y="97" text-anchor="middle" fill="#E53935" font-family="Segoe UI,Arial,sans-serif" font-size="11" font-weight="800">ALARM</text>
+</svg>
