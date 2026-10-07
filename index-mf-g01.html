@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEANNOVA Materialflow MF-G01</title>
+<style>
+:root{--blue:#0478A0;--cyan:#039ED2;--navy:#073A5A;--bg:#F4F6F7;--line:#DDE3E6;--text:#1D2529;--muted:#66757D;--soft:#EAF7FC;--ok:#2E7D32;--warn:#B7791F;--bad:#C62828}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}body{overflow-x:hidden}
+.shell{min-height:100vh;background:#fff;border-left:4px solid var(--blue)}header{padding:12px 14px 10px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#fbfdfe)}
+.brand{font-size:17px;font-weight:800}.sub{font-size:9px;color:var(--muted);margin-top:3px}.badge{display:inline-block;margin-top:7px;padding:3px 6px;border:1px solid rgba(4,120,160,.25);background:var(--soft);color:var(--blue);font-size:8px;font-weight:800;letter-spacing:.08em}
+main{padding:12px 14px 24px}.notice{padding:9px 10px;border-left:3px solid var(--cyan);background:var(--soft);font-size:10px;margin-bottom:10px;line-height:1.45}.notice.warn{border-color:#E0A000;background:#FFF8E5}.notice.bad{border-color:var(--bad);background:#FCEDEC}
+.card{border:1px solid var(--line);background:#fff;padding:10px;margin-bottom:9px}.card h2{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin:0 0 8px}.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--blue);background:#fff;color:var(--blue);padding:7px 8px;font:inherit;font-size:9px;font-weight:750;cursor:pointer}.btn.primary{background:var(--blue);color:#fff}.btn.bad{border-color:var(--bad);color:var(--bad)}.btn:disabled{opacity:.35;cursor:not-allowed}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.field label{display:block;font-size:8px;color:var(--muted);margin-bottom:3px}.field input,.field select{width:100%;border:1px solid var(--line);padding:7px;font:inherit;font-size:10px;background:#fff}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.stat{border:1px solid var(--line);padding:8px;text-align:center}.stat .n{font-size:16px;font-weight:800}.stat .l{font-size:7px;color:var(--muted);margin-top:2px}
+.hint{font-size:8px;color:var(--muted);line-height:1.45;margin-top:7px}.small{font-size:8px;color:var(--muted)}.list{display:grid;gap:5px;margin-top:8px}.item{border:1px solid var(--line);padding:7px;display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center}.item strong{font-size:10px}.item .meta{font-size:8px;color:var(--muted);margin-top:2px;line-height:1.4}.item .actions{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.log{max-height:160px;overflow:auto;border:1px solid var(--line);background:#FAFBFB;font-family:Consolas,monospace;font-size:8px;padding:7px;white-space:pre-wrap}
+.dirty{color:var(--warn);font-weight:700}@media(max-width:520px){.grid,.stats{grid-template-columns:1fr}.item{grid-template-columns:1fr}.item .actions{justify-content:flex-start}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header><div class="brand">LEANNOVA Materialflow</div><div class="sub">MF-G01 · Fahrwegenetz aus Trimble + Materialfluss-Routing</div><span class="badge">GATE 01 · MATERIALFLOW / SPAGHETTI</span></header>
+<main>
+<div id="notice" class="notice">Verbinde mit Trimble Connect ...</div>
+
+<div class="card">
+<h2>1. Fahrwegenetz aus Trimble</h2>
+<div class="row">
+<button id="readRoadsBtn" class="btn primary" disabled>Fahrwege übernehmen</button>
+<div class="field" style="min-width:120px"><label>Snap-Toleranz (mm)</label><input id="snapTol" type="number" min="10" max="5000" step="50" value="250"></div>
+<span id="roadDirty" class="small">Noch nicht eingelesen</span>
+</div>
+<div class="stats" style="margin-top:8px">
+<div class="stat"><div id="segN" class="n">0</div><div class="l">SEGMENTE</div></div>
+<div class="stat"><div id="nodeN" class="n">0</div><div class="l">NETZKNOTEN</div></div>
+<div class="stat"><div id="roadKm" class="n">0,00</div><div class="l">NETZLÄNGE KM</div></div>
+</div>
+<div class="hint">Zeichne die Fahrwege mit dem normalen <b>Linien-Markup</b> direkt in Trimble. Kreuzungen müssen über gemeinsame Linienendpunkte aufgebaut werden; kleine Abweichungen gleicht die Snap-Toleranz aus. Materialfluss-Pfeile werden separat erzeugt und nicht als Fahrweg eingelesen.</div>
+</div>
+
+<div class="card">
+<h2>2. Stationen aus 3D-Objekten</h2>
+<div class="grid">
+<div class="field"><label>Stationsname</label><input id="stationName" placeholder="z. B. Wareneingang oder M01"></div>
+<div class="field"><label>Aktion</label><button id="addStationBtn" class="btn primary" style="width:100%" disabled>Auswahl als Station übernehmen</button></div>
+</div>
+<div id="stationList" class="list"><div class="small">Noch keine Stationen angelegt.</div></div>
+<div class="hint">Objekt im Trimble-Viewer auswählen, Namen eingeben und übernehmen. Die Station wird automatisch dem nächstgelegenen Knoten des Fahrwegenetzes zugeordnet.</div>
+</div>
+
+<div class="card">
+<h2>3. Materialfluss definieren</h2>
+<div class="grid">
+<div class="field"><label>Von</label><select id="fromStation"></select></div>
+<div class="field"><label>Nach</label><select id="toStation"></select></div>
+<div class="field"><label>Material / Flussname</label><input id="materialName" placeholder="z. B. Baugruppe A"></div>
+<div class="field"><label>Transporte pro Tag</label><input id="tripsPerDay" type="number" min="0" step="1" value="10"></div>
+</div>
+<div class="row" style="margin-top:8px"><button id="addFlowBtn" class="btn primary" disabled>Materialfluss hinzufügen</button><button id="showAllBtn" class="btn" disabled>Alle anzeigen</button><button id="clearOverlayBtn" class="btn" disabled>Anzeige ausblenden</button></div>
+<div id="flowList" class="list"><div class="small">Noch keine Materialflüsse angelegt.</div></div>
+</div>
+
+<div class="card">
+<h2>4. Auswertung</h2>
+<div class="stats">
+<div class="stat"><div id="flowN" class="n">0</div><div class="l">MATERIALFLÜSSE</div></div>
+<div class="stat"><div id="tripN" class="n">0</div><div class="l">TRANSPORTE / TAG</div></div>
+<div class="stat"><div id="transportKm" class="n">0,0</div><div class="l">TRANSPORTWEG KM / TAG</div></div>
+</div>
+<div class="hint">Berechnung: kürzester Weg auf deinem selbst gezeichneten Trimble-Fahrwegenetz × Transporte pro Tag. G01 behandelt die Fahrwege zunächst in beide Richtungen.</div>
+</div>
+
+<div class="card"><h2>Technik-Log</h2><div id="log" class="log"></div></div>
+</main></div>
+
+<script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
+<script>
+let API=null, projectId='default', storageKey='leannova-mf-g01-default';
+let network={nodes:[],edges:[],adj:new Map(),lineCount:0,totalLength:0};
+let stations=[], flows=[], overlayIds=[];
+const el=id=>document.getElementById(id);
+const num=v=>{const n=Number(v);return Number.isFinite(n)?n:0};
+const fmt=(v,d=1)=>Number(v||0).toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function log(s){el('log').textContent='['+new Date().toLocaleTimeString('de-DE')+'] '+s+'\n'+el('log').textContent}
+function notice(s,t=''){el('notice').className='notice'+(t?' '+t:'');el('notice').innerHTML=s}
+function p3(p){return{x:num(p?.positionX),y:num(p?.positionY),z:num(p?.positionZ)}}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)}
+function save(){try{localStorage.setItem(storageKey,JSON.stringify({stations,flows}))}catch(e){log('Speichern lokal nicht möglich: '+e.message)}}
+function load(){try{const x=JSON.parse(localStorage.getItem(storageKey)||'null');if(x){stations=Array.isArray(x.stations)?x.stations:[];flows=Array.isArray(x.flows)?x.flows:[]}}catch(e){log('Gespeicherte Daten konnten nicht geladen werden')}}
+function setEnabled(){const hasNet=network.nodes.length>0,hasStations=stations.length>=2;el('addStationBtn').disabled=!API;el('addFlowBtn').disabled=!(hasNet&&hasStations);el('showAllBtn').disabled=!(hasNet&&flows.length);el('clearOverlayBtn').disabled=!overlayIds.length}
+function getNodeNear(pt,tol,nodes){
+ let best=-1,bestD=Infinity;
+ for(let i=0;i<nodes.length;i++){const d=dist(pt,nodes[i]);if(d<bestD){bestD=d;best=i}}
+ if(best>=0&&bestD<=tol)return best;
+ nodes.push({id:nodes.length,x:pt.x,y:pt.y,z:pt.z});return nodes.length-1;
+}
+function buildNetwork(lines){
+ const tol=Math.max(10,Math.min(5000,num(el('snapTol').value)||250)),nodes=[],edges=[],adj=new Map();
+ for(const ln of lines||[]){
+   if(!ln?.start||!ln?.end)continue;
+   const a0=p3(ln.start),b0=p3(ln.end);if(dist(a0,b0)<1)continue;
+   const a=getNodeNear(a0,tol,nodes),b=getNodeNear(b0,tol,nodes);if(a===b)continue;
+   const len=dist(nodes[a],nodes[b]),edge={id:edges.length,a,b,length:len,markupId:ln.id};edges.push(edge);
+ }
+ for(const n of nodes)adj.set(n.id,[]);
+ for(const e of edges){adj.get(e.a).push({to:e.b,edge:e.id,w:e.length});adj.get(e.b).push({to:e.a,edge:e.id,w:e.length})}
+ network={nodes,edges,adj,lineCount:(lines||[]).length,totalLength:edges.reduce((s,e)=>s+e.length,0)};
+ resnapStations();recalcFlows();
+}
+function nearestNode(pt){
+ let best=null,bestD=Infinity;
+ for(const n of network.nodes){const d=dist(pt,n);if(d<bestD){best=n;bestD=d}}
+ return best?{nodeId:best.id,distance:bestD}:null;
+}
+function resnapStations(){
+ for(const s of stations){const n=nearestNode(s.positionMm);s.nodeId=n?.nodeId??null;s.snapDistance=n?.distance??null}
+}
+function dijkstra(start,end){
+ if(start==null||end==null||!network.adj.has(start)||!network.adj.has(end))return null;
+ const d=new Map(network.nodes.map(n=>[n.id,Infinity])),prev=new Map(),used=new Set();d.set(start,0);
+ while(used.size<network.nodes.length){
+   let u=null,du=Infinity;for(const [id,v] of d){if(!used.has(id)&&v<du){u=id;du=v}}
+   if(u==null)break;if(u===end)break;used.add(u);
+   for(const a of network.adj.get(u)||[]){const nd=du+a.w;if(nd<d.get(a.to)){d.set(a.to,nd);prev.set(a.to,{node:u,edge:a.edge})}}
+ }
+ if(!Number.isFinite(d.get(end)))return null;
+ const nodes=[end],edges=[];let cur=end;
+ while(cur!==start){const p=prev.get(cur);if(!p)return null;edges.unshift(p.edge);cur=p.node;nodes.unshift(cur)}
+ return{nodes,edges,length:d.get(end)};
+}
+function recalcFlows(){
+ for(const f of flows){
+   const a=stations.find(s=>s.id===f.fromId),b=stations.find(s=>s.id===f.toId),r=a&&b?dijkstra(a.nodeId,b.nodeId):null;
+   f.routeLengthMm=r?.length??null;f.routeNodes=r?.nodes??[];f.routeEdges=r?.edges??[];
+ }
+ save();render();
+}
+function stationCenterToMm(box){
+ const c={x:(num(box.min.x)+num(box.max.x))/2,y:(num(box.min.y)+num(box.max.y))/2,z:(num(box.min.z)+num(box.max.z))/2};
+ if(!network.nodes.length){const max=Math.max(Math.abs(c.x),Math.abs(c.y),Math.abs(c.z));const f=max<1000?1000:1;return{x:c.x*f,y:c.y*f,z:c.z*f}}
+ const a={x:c.x,y:c.y,z:c.z},b={x:c.x*1000,y:c.y*1000,z:c.z*1000};
+ const da=nearestNode(a)?.distance??Infinity,db=nearestNode(b)?.distance??Infinity;return db<da?b:a;
+}
+async function readRoads(){
+ try{
+   await clearOverlay();
+   const lines=await API.markup.getLineMarkups();buildNetwork(lines);
+   el('roadDirty').textContent='Aktuell';el('roadDirty').className='small';
+   log('Fahrwegenetz: '+network.edges.length+' Segmente, '+network.nodes.length+' Knoten, '+fmt(network.totalLength/1000,1)+' m');
+   notice('Fahrwegenetz übernommen. Jetzt Stationen aus ausgewählten 3D-Objekten anlegen.');
+ }catch(e){notice('Fahrwege konnten nicht eingelesen werden: '+e.message,'bad');log('Netz FEHLER: '+e.message)}
+}
+async function addStation(){
+ try{
+   if(!network.nodes.length){notice('Bitte zuerst das Fahrwegenetz einlesen.','warn');return}
+   const sel=await API.viewer.getSelection();const first=(sel||[]).find(x=>(x.objectRuntimeIds||[]).length);
+   if(!first){notice('Bitte zuerst genau ein Objekt im Trimble-Viewer auswählen.','warn');return}
+   const rid=first.objectRuntimeIds[0],boxes=await API.viewer.getObjectBoundingBoxes(first.modelId,[rid]),box=boxes?.[0]?.boundingBox;
+   if(!box)throw new Error('Bounding Box der Auswahl nicht verfügbar.');
+   const pos=stationCenterToMm(box),near=nearestNode(pos),name=(el('stationName').value||'Station '+(stations.length+1)).trim();
+   stations.push({id:'S'+Date.now()+'-'+Math.random().toString(36).slice(2,7),name,modelId:first.modelId,runtimeId:rid,positionMm:pos,nodeId:near?.nodeId??null,snapDistance:near?.distance??null});
+   el('stationName').value='';save();render();log('Station '+name+' angelegt · Abstand zum Netz '+fmt((near?.distance||0)/1000,2)+' m');
+ }catch(e){notice('Station konnte nicht angelegt werden: '+e.message,'bad');log('Station FEHLER: '+e.message)}
+}
+function addFlow(){
+ const fromId=el('fromStation').value,toId=el('toStation').value,trips=Math.max(0,num(el('tripsPerDay').value)),material=(el('materialName').value||'Materialfluss').trim();
+ if(!fromId||!toId||fromId===toId){notice('Bitte unterschiedliche Von-/Nach-Stationen wählen.','warn');return}
+ const a=stations.find(s=>s.id===fromId),b=stations.find(s=>s.id===toId),r=dijkstra(a?.nodeId,b?.nodeId);
+ if(!r){notice('Zwischen diesen Stationen gibt es auf dem aktuellen Fahrwegenetz keine Verbindung.','bad');return}
+ flows.push({id:'F'+Date.now()+'-'+Math.random().toString(36).slice(2,7),fromId,toId,material,tripsPerDay:trips,routeLengthMm:r.length,routeNodes:r.nodes,routeEdges:r.edges});
+ el('materialName').value='';save();render();log('Materialfluss '+material+' angelegt · '+fmt(r.length/1000,1)+' m · '+fmt(trips,0)+' Transporte/Tag');
+}
+function deleteStation(id){stations=stations.filter(s=>s.id!==id);flows=flows.filter(f=>f.fromId!==id&&f.toId!==id);save();render()}
+function deleteFlow(id){flows=flows.filter(f=>f.id!==id);save();render()}
+function flowRoute(f){const a=stations.find(s=>s.id===f.fromId),b=stations.find(s=>s.id===f.toId);return a&&b?dijkstra(a.nodeId,b.nodeId):null}
+function pt(n,zOff=120){return{positionX:n.x,positionY:n.y,positionZ:n.z+zOff}}
+async function clearOverlay(){
+ if(overlayIds.length){try{await API.markup.removeMarkups(overlayIds)}catch(e){log('Overlay löschen: '+e.message)}overlayIds=[]}
+ setEnabled();
+}
+async function showFlows(ids){
+ try{
+   await clearOverlay();const chosen=flows.filter(f=>ids.includes(f.id));if(!chosen.length)return;
+   const arrows=[],texts=[],colors=[{r:4,g:120,b:160,a:255},{r:3,g:158,b:210,a:255},{r:7,g:58,b:90,a:255}];
+   chosen.forEach((f,fi)=>{
+     const r=flowRoute(f);if(!r)return;f.routeLengthMm=r.length;f.routeNodes=r.nodes;f.routeEdges=r.edges;
+     for(let i=0;i<r.nodes.length-1;i++){const a=network.nodes[r.nodes[i]],b=network.nodes[r.nodes[i+1]];arrows.push({start:pt(a),end:pt(b),color:colors[fi%colors.length]})}
+     const mid=network.nodes[r.nodes[Math.floor(r.nodes.length/2)]];if(mid)texts.push({start:pt(mid,350),end:pt(mid,350),text:f.material+' | '+fmt(f.tripsPerDay,0)+'/Tag | '+fmt((r.length*f.tripsPerDay)/1000000,1)+' km/Tag',color:colors[fi%colors.length]});
+   });
+   const a=arrows.length?await API.markup.addArrowMarkups(arrows):[];const t=texts.length?await API.markup.addTextMarkup(texts):[];
+   overlayIds=[...(a||[]).map(x=>x.id),...(t||[]).map(x=>x.id)].filter(x=>x!==undefined&&x!==null);
+   setEnabled();notice(chosen.length+' Materialfluss/Materialflüsse im Trimble-Modell angezeigt.');
+   log('Overlay: '+arrows.length+' Pfeilsegmente, '+texts.length+' Beschriftungen');
+ }catch(e){notice('Materialfluss konnte nicht angezeigt werden: '+e.message,'bad');log('Overlay FEHLER: '+e.message)}
+}
+function render(){
+ el('segN').textContent=String(network.edges.length);el('nodeN').textContent=String(network.nodes.length);el('roadKm').textContent=fmt(network.totalLength/1000000,2);
+ const sl=el('stationList');sl.innerHTML=stations.length?'':'<div class="small">Noch keine Stationen angelegt.</div>';
+ for(const s of stations){
+   const d=document.createElement('div');d.className='item';d.innerHTML='<div><strong>'+esc(s.name)+'</strong><div class="meta">Netzknoten '+(s.nodeId==null?'—':s.nodeId)+' · Abstand '+(s.snapDistance==null?'—':fmt(s.snapDistance/1000,2)+' m')+'</div></div><div class="actions"><button class="btn bad">Löschen</button></div>';
+   d.querySelector('button').onclick=()=>deleteStation(s.id);sl.appendChild(d);
+ }
+ const from=el('fromStation'),to=el('toStation'),oldF=from.value,oldT=to.value;from.innerHTML='';to.innerHTML='';
+ for(const s of stations){for(const q of [from,to]){const o=document.createElement('option');o.value=s.id;o.textContent=s.name;q.appendChild(o)}}if(stations.some(s=>s.id===oldF))from.value=oldF;if(stations.some(s=>s.id===oldT))to.value=oldT;else if(stations.length>1)to.value=stations[1].id;
+ const fl=el('flowList');fl.innerHTML=flows.length?'':'<div class="small">Noch keine Materialflüsse angelegt.</div>';
+ let trips=0,tkm=0;
+ for(const f of flows){
+   const a=stations.find(s=>s.id===f.fromId),b=stations.find(s=>s.id===f.toId),r=flowRoute(f),len=r?.length??null;f.routeLengthMm=len;trips+=f.tripsPerDay;if(len!=null)tkm+=len*f.tripsPerDay/1000000;
+   const d=document.createElement('div');d.className='item';d.innerHTML='<div><strong>'+esc(f.material)+'</strong><div class="meta">'+esc(a?.name||'?')+' → '+esc(b?.name||'?')+' · '+fmt(f.tripsPerDay,0)+' Transporte/Tag · '+(len==null?'keine Route':fmt(len/1000,1)+' m je Transport')+'</div></div><div class="actions"><button class="btn show">Anzeigen</button><button class="btn bad del">Löschen</button></div>';
+   d.querySelector('.show').disabled=len==null;d.querySelector('.show').onclick=()=>showFlows([f.id]);d.querySelector('.del').onclick=()=>deleteFlow(f.id);fl.appendChild(d);
+ }
+ el('flowN').textContent=String(flows.length);el('tripN').textContent=fmt(trips,0);el('transportKm').textContent=fmt(tkm,1);setEnabled();
+}
+function onWorkspaceEvent(event,args){
+ if(event==='viewer.onMarkupChanged'&&args?.data?.markupType==='lineMarkup'&&!args?.origin?.isSelf){el('roadDirty').textContent='Fahrwege geändert – neu übernehmen';el('roadDirty').className='small dirty';}
+}
+async function init(){
+ try{
+   API=await TrimbleConnectWorkspace.connect(window.parent,onWorkspaceEvent,30000);
+   try{const p=await API.project.getProject();projectId=p?.id||'default';storageKey='leannova-mf-g01-'+projectId;load();log('Projekt: '+(p?.name||projectId))}catch(e){load()}
+   el('readRoadsBtn').disabled=false;notice('Verbunden. Zeichne Fahrwege als Linien in Trimble und klicke <b>Fahrwege übernehmen</b>.','warn');render();log('Workspace API verbunden');
+ }catch(e){notice('Startfehler: '+e.message,'bad');log('Startfehler: '+e.message)}
+}
+el('readRoadsBtn').onclick=readRoads;el('snapTol').onchange=()=>{if(API)readRoads()};el('addStationBtn').onclick=addStation;el('addFlowBtn').onclick=addFlow;el('showAllBtn').onclick=()=>showFlows(flows.map(f=>f.id));el('clearOverlayBtn').onclick=clearOverlay;render();init();
+</script>
+</body>
+</html>
