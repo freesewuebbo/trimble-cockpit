@@ -1,0 +1,7 @@
+{
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-mf-g01.html?build=20261007-g01a",
+  "title": "LEANNOVA Materialflow MF-G01",
+  "description": "Materialfluss-Prototyp: Fahrwege aus Trimble-Line-Markups, Stationen aus 3D-Auswahl, Routing und Spaghetti-Darstellung als Pfeile im Viewer.",
+  "extensionType": ["3dviewer"],
+  "type": "panel"
+}
