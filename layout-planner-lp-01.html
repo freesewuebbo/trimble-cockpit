@@ -37,7 +37,7 @@ h2{font-size:15px;margin:0 0 9px;color:var(--blue)}.small{font-size:12px;color:v
     <button id="undoBtn" disabled>Undo</button>
     <button id="topBtn">Draufsicht</button>
     <div class="spacer"></div>
-    <div class="status" id="status">Demo-Halle wird geladen …</div>
+    <div class="status" id="status">Build lp01c · Demo-Halle wird geladen …</div>
   </div>
   <div class="main">
     <div class="viewer" id="viewer">
@@ -144,13 +144,20 @@ function resize(){
 new ResizeObserver(resize).observe(viewer);resize();
 
 function decodeBase64(s){
- s=String(s||"").replace(/\s+/g,"").replace(/=+$/,"");
- const rem=s.length%4;
- if(rem===1)throw new Error("Eingebettete Demo-IFC ist unvollstaendig (Base64-Laenge).");
- if(rem)s+="=".repeat(4-rem);
- const bin=atob(s),out=new Uint8Array(bin.length);
- for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
- return out;
+ const clean=String(s||"").replace(/\s+/g,"").replace(/=+$/,"");
+ if(clean.length%4===1)throw new Error("Eingebettete Demo-IFC ist unvollstaendig.");
+ const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+ const bytes=[];let buffer=0,bits=0;
+ for(const ch of clean){
+  const value=alphabet.indexOf(ch);
+  if(value<0)throw new Error("Ungueltiges Zeichen in der eingebetteten Demo-IFC.");
+  buffer=(buffer<<6)|value;bits+=6;
+  while(bits>=8){
+   bits-=8;bytes.push((buffer>>bits)&255);
+   buffer=bits?buffer&((1<<bits)-1):0;
+  }
+ }
+ return Uint8Array.from(bytes);
 }
 async function getDemoIfcBytes(){
  if(!("DecompressionStream" in window))throw new Error("Dieser Browser unterstützt den eingebetteten Demo-IFC-Decoder nicht.");
