@@ -143,7 +143,15 @@ function resize(){
 }
 new ResizeObserver(resize).observe(viewer);resize();
 
-function decodeBase64(s){const bin=atob(s),out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out}
+function decodeBase64(s){
+ s=String(s||"").replace(/\s+/g,"").replace(/=+$/,"");
+ const rem=s.length%4;
+ if(rem===1)throw new Error("Eingebettete Demo-IFC ist unvollstaendig (Base64-Laenge).");
+ if(rem)s+="=".repeat(4-rem);
+ const bin=atob(s),out=new Uint8Array(bin.length);
+ for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);
+ return out;
+}
 async function getDemoIfcBytes(){
  if(!("DecompressionStream" in window))throw new Error("Dieser Browser unterstützt den eingebetteten Demo-IFC-Decoder nicht.");
  const zipped=decodeBase64(BASE_IFC_GZ_B64);
