@@ -37,7 +37,7 @@ h2{font-size:15px;margin:0 0 9px;color:var(--blue)}.small{font-size:12px;color:v
     <button id="undoBtn" disabled>Undo</button>
     <button id="topBtn">Draufsicht</button>
     <div class="spacer"></div>
-    <div class="status" id="status">Build lp01d · Demo-Halle wird geladen …</div>
+    <div class="status" id="status">Build lp01e · Demo-Halle wird geladen …</div>
   </div>
   <div class="main">
     <div class="viewer" id="viewer">
@@ -212,18 +212,37 @@ function fitCamera(){
 }
 async function ensureIfc(){
  if(ifcApi)return;
- setStatus("Build lp01d · IFC-Engine wird initialisiert …");
- ifcApi=new WebIFC.IfcAPI();
- const wasmBase="https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/";
- await ifcApi.Init((path)=>wasmBase+path,true);
- setStatus("Build lp01d · IFC-Engine bereit.");
+ const wasmUrl="https://unpkg.com/web-ifc@0.0.77/web-ifc.wasm";
+ setStatus("Build lp01e · WASM-Verbindung wird geprüft …");
+ try{
+  const probe=await fetch(wasmUrl,{mode:"cors",cache:"no-store"});
+  if(!probe.ok)throw new Error("HTTP "+probe.status+" "+probe.statusText);
+ }catch(e){
+  throw new Error("WASM-Test fehlgeschlagen: "+e.message);
+ }
+ setStatus("Build lp01e · IFC-Engine wird initialisiert …");
+ try{
+  ifcApi=new WebIFC.IfcAPI();
+  await ifcApi.Init((path,prefix)=>{
+   if(String(path).includes(".wasm"))return wasmUrl;
+   return path;
+  },true);
+ }catch(e){
+  ifcApi=null;
+  throw new Error("IFC-Engine Init fehlgeschlagen: "+e.message);
+ }
+ setStatus("Build lp01e · IFC-Engine bereit.");
 }
 async function loadIfcBytes(bytes,label,isDemo){
  const generation=++loadGeneration;clearCurrentModel();await ensureIfc();
  setStatus(label+" wird gelesen …");
  if(isDemo)baseIfcText=new TextDecoder().decode(bytes);else baseIfcText=new TextDecoder().decode(bytes);
- modelID=ifcApi.OpenModel(bytes,{COORDINATE_TO_ORIGIN:false,CIRCLE_SEGMENTS:24});
- if(modelID===-1)throw new Error("IFC konnte nicht geöffnet werden.");
+ try{
+  modelID=ifcApi.OpenModel(bytes,{COORDINATE_TO_ORIGIN:false,CIRCLE_SEGMENTS:24});
+ }catch(e){
+  throw new Error("IFC OpenModel fehlgeschlagen: "+e.message);
+ }
+ if(modelID===-1)throw new Error("IFC OpenModel lieferte -1.");
  modelGroup=new THREE.Group();modelGroup.name=label;sceneRoot.add(modelGroup);
  const expressToMeta=new Map();
  for(const meta of MACHINES){const eid=Number(ifcApi.GetExpressIdFromGuid(modelID,meta.guid));if(Number.isFinite(eid))expressToMeta.set(eid,meta)}
@@ -247,7 +266,17 @@ async function loadIfcBytes(bytes,label,isDemo){
  setStatus(label+" geladen · "+originalRoots.size+" Maschinen erkannt · "+meshCount+" Geometrien");
  updateUI();
 }
-async function loadDemo(){try{const bytes=await getDemoIfcBytes();await loadIfcBytes(bytes,"Demo-Halle",true)}catch(e){setStatus("Fehler: "+e.message,true);console.error(e)}}
+async function loadDemo(){
+ try{
+  setStatus("Build lp01e · Demo-IFC wird entpackt …");
+  const bytes=await getDemoIfcBytes();
+  setStatus("Build lp01e · Demo-IFC bereit ("+bytes.length+" Bytes)");
+  await loadIfcBytes(bytes,"Demo-Halle",true);
+ }catch(e){
+  setStatus("Build lp01e · Fehler: "+e.message,true);
+  console.error(e);
+ }
+}
 function releaseMultiPivot(){
  if(!multiPivot)return;
  transform.detach();
