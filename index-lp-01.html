@@ -1,5 +1,118 @@
 <!doctype html>
-<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LEANNOVA Layout Planner LP-01</title>
-<style>body{margin:0;font-family:"Segoe UI",Arial,sans-serif;color:#17252c;background:#fff}.p{padding:18px}.tag{display:inline-block;background:#063b55;color:white;font-weight:800;padding:4px 7px;border-radius:4px;font-size:12px}h1{font-size:21px;color:#063b55;margin:10px 0 6px}p{font-size:13px;line-height:1.5;color:#63747c}button{width:100%;height:44px;border:0;border-radius:5px;background:#063b55;color:white;font-weight:800;cursor:pointer;margin-top:10px}.small{font-size:11px;color:#7a878d;margin-top:10px}</style></head>
-<body><div class="p"><span class="tag">LP-01</span><h1>Layout Planner</h1><p>Die eigentliche 3D-Layoutplanung öffnet sich in einem eigenen Browser-Tab. Dort kannst du Maschinen direkt im Modell verschieben, drehen, kopieren und Anmerkungen setzen.</p><button id="open">Layout Planner öffnen ↗</button><div class="small">LP-01 startet zunächst mit der LEANNOVA Demo-Halle. Die direkte Übergabe der aktuell geöffneten Trimble-Datei folgt im nächsten Integrationsschritt.</div></div>
-<script>document.getElementById("open").onclick=function(){window.open("https://freesewuebbo.github.io/trimble-cockpit/layout-planner-lp-01f6.html?build=F6","_blank","noopener")}</script></body></html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEANNOVA Layout Planner LP-01</title>
+<style>
+:root{--blue:#063b55;--cyan:#009ed2;--line:#d4dde1;--muted:#68777e}
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI",Arial,sans-serif;color:#17252c;background:#fff}
+.p{padding:14px}.head{display:flex;align-items:center;gap:7px}.tag{display:inline-block;background:var(--blue);color:white;font-weight:800;padding:4px 7px;border-radius:4px;font-size:12px}.build{background:var(--cyan)}
+h1{font-size:20px;color:var(--blue);margin:10px 0 5px}p{font-size:12px;line-height:1.45;color:var(--muted)}
+button{width:100%;min-height:38px;border:1px solid #bfcbd0;border-radius:5px;background:#fff;color:#17252c;font-weight:700;cursor:pointer;margin-top:7px;padding:7px}
+button.primary{background:var(--blue);border-color:var(--blue);color:white}button:disabled{opacity:.45;cursor:not-allowed}
+.status{font-size:11px;color:var(--muted);margin:8px 0;padding:7px;border:1px solid var(--line);border-radius:5px;background:#f7f9fa}
+.models{display:flex;flex-direction:column;gap:5px;margin-top:8px}.model{border:1px solid var(--line);border-radius:5px;padding:7px;display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center}
+.model b{display:block;font-size:12px;color:var(--blue);overflow:hidden;text-overflow:ellipsis}.model span{font-size:10px;color:var(--muted)}
+.model button{width:auto;margin:0;min-height:32px}
+.small{font-size:10px;color:var(--muted);margin-top:8px}
+</style>
+<script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script>
+</head>
+<body>
+<div class="p">
+  <div class="head"><span class="tag">LP-01</span><span class="tag build">F7</span></div>
+  <h1>Layout Planner</h1>
+  <p>Aktuell in Trimble geladene IFC-Modelle können direkt an den Layout Planner übergeben werden.</p>
+  <div class="status" id="status">Verbinde mit Trimble Connect …</div>
+  <div id="models" class="models"></div>
+  <button id="refreshBtn">Geladene Modelle aktualisieren</button>
+  <button id="demoBtn" class="primary">Demo-Halle im Layout Planner öffnen ↗</button>
+  <div class="small">Falls ein geladenes Modell keinen Datei-Blob liefert, zeigt LP die Ursache an. Dann ergänzen wir als Fallback den Download über die Trimble Core API.</div>
+</div>
+<script>
+let API=null;
+const status=document.getElementById("status"),modelsBox=document.getElementById("models");
+const LP_URL="https://freesewuebbo.github.io/trimble-cockpit/layout-planner-lp-01f7.html?build=F7";
+
+function setStatus(s){status.textContent=s}
+function base64ToArrayBuffer(s){
+  const clean=String(s||"").replace(/^data:[^,]*,/,"").replace(/\s+/g,"").replace(/=+$/,"");
+  const abc="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const out=[];let buf=0,bits=0;
+  for(const ch of clean){
+    const v=abc.indexOf(ch);if(v<0)continue;
+    buf=(buf<<6)|v;bits+=6;
+    while(bits>=8){bits-=8;out.push((buf>>bits)&255);buf=bits?buf&((1<<bits)-1):0}
+  }
+  return Uint8Array.from(out).buffer;
+}
+async function blobToArrayBuffer(blob){
+  if(blob instanceof Blob)return await blob.arrayBuffer();
+  if(typeof blob==="string")return base64ToArrayBuffer(blob);
+  if(blob instanceof ArrayBuffer)return blob;
+  if(ArrayBuffer.isView(blob))return blob.buffer.slice(blob.byteOffset,blob.byteOffset+blob.byteLength);
+  throw new Error("Trimble liefert keinen lesbaren Dateiinhalt.");
+}
+async function openModel(model){
+  const win=window.open(LP_URL+"&source=trimble","_blank");
+  if(!win){setStatus("Popup wurde blockiert. Bitte Popups für diese Seite erlauben.");return}
+  try{
+    setStatus("Lade "+model.name+" aus Trimble …");
+    const file=await API.viewer.getLoadedModel(model.id);
+    if(!file)throw new Error("Trimble hat keine Modelldatei zurückgegeben.");
+    if(!file.blob)throw new Error("Für dieses Modell liefert Trimble keinen Datei-Blob.");
+    const buffer=await blobToArrayBuffer(file.blob);
+    if(!buffer.byteLength)throw new Error("Die geladene Modelldatei ist leer.");
+    const payload={type:"LP_LOAD_IFC",name:file.name||model.name,modelId:model.id,versionId:model.versionId,buffer};
+    let sent=false;
+    const onMsg=e=>{
+      if(e.origin!==location.origin||e.source!==win||e.data?.type!=="LP_READY")return;
+      sent=true;window.removeEventListener("message",onMsg);
+      win.postMessage(payload,location.origin,[buffer]);
+      setStatus((file.name||model.name)+" an Layout Planner übergeben.");
+    };
+    window.addEventListener("message",onMsg);
+    setTimeout(()=>{
+      if(sent)return;
+      window.removeEventListener("message",onMsg);
+      try{win.postMessage(payload,location.origin,[buffer]);setStatus((file.name||model.name)+" an Layout Planner übergeben.");}
+      catch(e){setStatus("Übergabe fehlgeschlagen: "+e.message)}
+    },2200);
+  }catch(e){
+    setStatus("Trimble-Übergabe fehlgeschlagen: "+e.message);
+    try{win.close()}catch(_){}
+  }
+}
+async function refresh(){
+  if(!API)return;
+  try{
+    setStatus("Lese geladene Modelle …");
+    const models=await API.viewer.getModels("loaded");
+    modelsBox.innerHTML="";
+    const usable=(models||[]).filter(m=>String(m.name||"").toLowerCase().endsWith(".ifc")||String(m.type||"").toLowerCase().includes("ifc"));
+    if(!usable.length){setStatus("Keine geladene IFC im Trimble-Viewer gefunden.");return}
+    for(const m of usable){
+      const row=document.createElement("div");row.className="model";
+      const txt=document.createElement("div");txt.innerHTML="<b>"+escapeHtml(m.name||"IFC-Modell")+"</b><span>"+escapeHtml(m.type||"IFC")+"</span>";
+      const btn=document.createElement("button");btn.textContent="Im LP öffnen ↗";btn.onclick=()=>openModel(m);
+      row.append(txt,btn);modelsBox.appendChild(row);
+    }
+    setStatus(usable.length+" geladene IFC-Modell(e) gefunden.");
+  }catch(e){setStatus("Modelle konnten nicht gelesen werden: "+e.message)}
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]))}
+async function connectTrimble(){
+  try{
+    API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{},30000);
+    setStatus("Mit Trimble Connect verbunden.");
+    await refresh();
+  }catch(e){
+    setStatus("Nicht in Trimble verbunden. Demo-Halle kann trotzdem geöffnet werden.");
+  }
+}
+document.getElementById("refreshBtn").onclick=refresh;
+document.getElementById("demoBtn").onclick=()=>window.open(LP_URL,"_blank","noopener");
+connectTrimble();
+</script>
+</body></html>
