@@ -1,7 +1,7 @@
 {
-  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-lp-01.html?build=F8",
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-lp-01.html?build=F9",
   "title": "LEANNOVA Layout Planner LP-01",
-  "description": "3D-Layoutplanung mit direktem Trimble-IFC-Import.",
+  "description": "3D-Layoutplanung, IFC-Klassen und geprüfter Export neuer IFC-Varianten; direkter Trimble-Upload noch gesperrt.",
   "extensionType": [
     "3dviewer"
   ],
