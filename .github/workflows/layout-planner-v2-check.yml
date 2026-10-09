@@ -1,0 +1,39 @@
+name: Layout Planner V2 – syntax and isolation
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'layout-planner-v2.html'
+      - 'lp-v2-*.js'
+      - 'index-lp-v2.html'
+      - 'manifest-lp-v2.json'
+      - '.github/workflows/layout-planner-v2-check.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check JavaScript modules
+        run: |
+          node --check lp-v2-app.js
+          node --check lp-v2-step.js
+          node --check lp-v2-supplement.js
+          node --check lp-v2-trimble-upload.js
+      - name: Check launcher JavaScript and V2 links
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          c=Path('index-lp-v2.html').read_text()
+          assert 'layout-planner-v2.html' in c
+          assert 'lp-trimble-source-f12.js' in c
+          assert 'lp-v2-trimble-upload.js' in c
+          assert 'manifest-lp-01.json' not in c
+          src=c.split('<script type="module">',1)[1].split('</script>',1)[0]
+          Path('/tmp/lp-v2-launcher.mjs').write_text(src)
+          import subprocess
+          subprocess.run(['node','--check','/tmp/lp-v2-launcher.mjs'],check=True)
+          html=Path('layout-planner-v2.html').read_text()
+          for id in ['canvas','modelList','drawL','repeatN','exportResult','sendTrimble']:
+              assert 'id="'+id+'"' in html,id
+          print('V2 links and controls OK')
+          PY
