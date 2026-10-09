@@ -1,0 +1,754 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEANNOVA Layout Planner LP-01</title>
+<style>
+:root{--blue:#063b55;--cyan:#009ed2;--bg:#eef2f4;--panel:#fff;--line:#d4dde1;--text:#17252c;--muted:#67777f;--danger:#b53a35}
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:"Segoe UI",Arial,sans-serif;color:var(--text);background:var(--bg)}
+body{overflow:hidden}.app{display:grid;grid-template-rows:54px 1fr;height:100%}
+.top{display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);min-width:0}
+.brand{font-weight:800;color:var(--blue);white-space:nowrap}.tag{font-size:12px;font-weight:800;color:#fff;background:var(--blue);padding:4px 7px;border-radius:4px}
+.sep{width:1px;height:28px;background:var(--line)}button,.btn{height:36px;border:1px solid #bfcbd0;background:#fff;color:var(--text);border-radius:5px;padding:0 11px;font-weight:650;cursor:pointer}
+button:hover{border-color:var(--cyan)}button.primary{background:var(--blue);border-color:var(--blue);color:#fff}button.active{background:#dff3fa;border-color:var(--cyan);color:var(--blue)}
+button:disabled{opacity:.45;cursor:not-allowed}.spacer{flex:1}.status{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
+.main{display:grid;grid-template-columns:1fr 320px;min-height:0}.viewer{position:relative;min-width:0;min-height:0;background:#dfe7ea}
+#canvas{width:100%;height:100%;display:block}.hint{position:absolute;left:12px;bottom:12px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:5px;padding:7px 9px;font-size:12px;color:var(--muted);pointer-events:none}
+.side{background:#fff;border-left:1px solid var(--line);overflow:auto;padding:14px}.section{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+h2{font-size:15px;margin:0 0 9px;color:var(--blue)}.small{font-size:12px;color:var(--muted);line-height:1.45}.selected{font-size:13px;font-weight:700;padding:9px;background:#f4f7f8;border:1px solid var(--line);border-radius:5px;min-height:40px}
+.row{display:flex;gap:7px;flex-wrap:wrap}.row button{flex:1;min-width:88px}.field{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:8px}textarea{width:100%;min-height:74px;resize:vertical;border:1px solid #bfcbd0;border-radius:5px;padding:8px;font:inherit}
+.note{padding:8px;border:1px solid var(--line);border-radius:5px;margin-top:7px;font-size:12px;cursor:pointer}.note:hover{border-color:var(--cyan)}
+.layerToolbar{display:flex;gap:6px;margin-bottom:7px}.layerToolbar button{height:30px;padding:0 8px;font-size:11px}
+.layerList{display:flex;flex-direction:column;gap:5px;max-height:270px;overflow:auto}
+.layerRow{display:grid;grid-template-columns:1fr 32px 32px 32px;gap:4px;align-items:center;padding:5px 5px 5px 7px;border:1px solid var(--line);border-radius:5px;background:#f8fafb}
+.layerRow.off{opacity:.55}.layerRow.locked{background:#f3f3f3}
+.layerName{min-width:0;font-size:11px;font-weight:700;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layerCount{font-weight:400;color:var(--muted);margin-left:4px}.layerBtn{height:28px!important;padding:0!important;min-width:0!important;font-size:14px!important}
+.note b{display:block;color:var(--blue);margin-bottom:3px}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:6px}.kpi div{padding:8px;background:#f4f7f8;border:1px solid var(--line);border-radius:5px}.kpi strong{display:block;font-size:17px;color:var(--blue)}.kpi span{font-size:11px;color:var(--muted)}
+#loadProjectInput,#loadIfcInput{display:none}.warn{font-size:11px;color:#8a5a00;margin-top:7px}.error{color:var(--danger)}
+@media(max-width:850px){.main{grid-template-columns:1fr}.side{display:none}.status{display:none}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">LEANNOVA Layout Planner</div><div class="tag">LP-01</div><div class="tag" style="background:#009ed2">BUILD F9</div><div class="sep"></div>
+    <button id="moveBtn" class="active">Verschieben</button>
+    <button id="rotateBtn">Drehen</button>
+    <button id="copyBtn" disabled>Kopieren</button>
+    <button id="undoBtn" disabled>Undo</button>
+    <button id="topBtn">Draufsicht</button>
+    <div class="spacer"></div>
+    <div class="status" id="status">BUILD F9 · Demo-Halle wird geladen …</div>
+  </div>
+  <div class="main">
+    <div class="viewer" id="viewer">
+      <canvas id="canvas"></canvas>
+      <div class="hint">Maschine direkt anklicken und ziehen · Shift = Mehrfachauswahl · Gizmo = X/Y/Z bzw. Rotation</div>
+    </div>
+    <aside class="side">
+      <div class="section">
+        <h2>Auswahl</h2>
+        <div class="selected" id="selectedText">Kein IFC-Objekt ausgewählt</div>
+        <div class="small" id="transformText" style="margin-top:7px">–</div>
+      </div>
+      <div class="section">
+        <h2>IFC-Struktur</h2>
+        <div class="small" style="margin-bottom:7px">Gruppiert nach IFC-Klasse. Sichtbarkeit, Sperre und Klassenauswahl gelten für alle Objekte dieser Klasse.</div>
+        <div class="layerToolbar">
+          <button id="showAllLayersBtn">Alle zeigen</button>
+          <button id="unlockAllLayersBtn">Alle entsperren</button>
+        </div>
+        <div class="layerList" id="layerList"></div>
+      </div>
+      <div class="section">
+        <h2>Planung</h2>
+        <div class="row">
+          <button id="moveSideBtn" class="active">Verschieben</button>
+          <button id="rotateSideBtn">Drehen</button>
+        </div>
+        <div class="row" style="margin-top:7px">
+          <button id="copySideBtn" disabled>Kopie</button>
+          <button id="resetSelBtn" disabled>Zurücksetzen</button>
+        </div>
+        <div class="row" style="margin-top:7px">
+          <button id="groupBtn" disabled>Gruppe bilden</button>
+          <button id="ungroupBtn" disabled>Gruppe auflösen</button>
+        </div>
+        <div class="small" id="groupInfo" style="margin-top:7px">Keine Gruppe</div>
+        <div class="small" style="margin-top:8px">Direktes Ziehen verschiebt in X/Y. Mit dem blauen Z-Griff kannst du die Höhe ändern. Rotation ist um X, Y und Z möglich.</div>
+      </div>
+      <div class="section">
+        <h2>Arbeitsebene</h2>
+        <div class="small">IFC bei Bedarf auf die XY-Planungsebene legen. Für normale IFCs erfolgt die Y-up → Z-up-Korrektur automatisch.</div>
+        <div class="row" style="margin-top:8px">
+          <button id="alignXpBtn">X +90°</button>
+          <button id="alignXmBtn">X -90°</button>
+        </div>
+        <div class="row" style="margin-top:7px">
+          <button id="alignYpBtn">Y +90°</button>
+          <button id="alignYmBtn">Y -90°</button>
+        </div>
+      </div>
+      <div class="section">
+        <h2>Anmerkung</h2>
+        <textarea id="noteInput" placeholder="z. B. Fundament prüfen …"></textarea>
+        <button id="addNoteBtn" class="primary" style="width:100%;margin-top:7px" disabled>Anmerkung hinzufügen</button>
+        <div id="notes"></div>
+      </div>
+      <div class="section">
+        <h2>Arbeitsstand</h2>
+        <div class="row">
+          <button id="saveProjectBtn">LP-Projekt speichern</button>
+          <button id="loadProjectBtn">LP-Projekt laden</button>
+        </div>
+        <input id="loadProjectInput" type="file" accept=".json,.lp.json">
+        <div class="row" style="margin-top:7px">
+          <button id="exportIfcBtn">IFC-Variante prüfen</button>
+          <button id="loadIfcBtn">Andere IFC öffnen</button>
+        </div>
+        <input id="loadIfcInput" type="file" accept=".ifc">
+        <div id="variantActions" style="display:none;margin-top:8px"><div class="small" id="variantInfo"></div><button id="variantDownloadBtn" style="width:100%;margin-top:6px">Geprüfte IFC herunterladen</button><button id="variantTrimbleBtn" style="width:100%;margin-top:6px" disabled>Neue IFC nach Trimble übertragen</button><div class="small" id="variantHint">Nur neue Datei; Original bleibt unverändert.</div></div>
+        <div class="warn">LP F9: IFC-Variantenexport unterstützt IFC-Objektplatzierungen und neue IFC-Objekte durch Kopien. Änderungen werden vor der Bereitstellung geprüft. Gruppierung und Anmerkungen verbleiben als LP-Projektdaten. Die ursprüngliche IFC wird nie überschrieben.</div>
+      </div>
+      <div class="section">
+        <h2>Status</h2>
+        <div class="kpi">
+          <div><strong id="machineN">0</strong><span>IFC-Objekte</span></div>
+          <div><strong id="copyN">0</strong><span>Kopien</span></div>
+          <div><strong id="noteN">0</strong><span>Anmerkungen</span></div>
+          <div><strong id="changeN">0</strong><span>verändert</span></div>
+        </div>
+        <div class="small" id="detailStatus" style="margin-top:8px">Initialisierung …</div>
+      </div>
+    </aside>
+  </div>
+</div>
+<script type="module">
+import * as THREE from "three";
+import { buildIfcVariant } from "./lp-step-export-f9.js?build=F9";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
+import * as WebIFC from "https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/web-ifc-api.js";
+
+const DEMO_PARTS=[
+ "lp01-demo-part-1.txt",
+ "lp01-demo-part-2.txt",
+ "lp01-demo-part-3.txt",
+ "lp01-demo-part-4.txt"
+];
+const MACHINES=[
+{id:"M-BAZ-01",name:"BAZ 01",guid:"2W4hgQTDzBURFXHBZOYTW0",anchor:[5,5,0],point:426,dir:810},
+{id:"M-LAS-01",name:"Laser 01",guid:"0wfx7VSoD7teoctgt50N8K",anchor:[13,5,0],point:496,dir:811},
+{id:"M-DRH-01",name:"Drehmaschine 01",guid:"1Pxcfkx097MRVV0XGxDxCt",anchor:[22,5,0],point:566,dir:812},
+{id:"M-BAZ-02",name:"BAZ 02",guid:"3N8Bks045EjA7dARuN7fGI",anchor:[5.5,13,0],point:636,dir:813},
+{id:"M-MES-01",name:"Messmaschine 01",guid:"1D$4Xa2HvFowzC1hB1nbLk",anchor:[14.5,13,0],point:711,dir:814},
+{id:"M-MON-01",name:"Montageplatz 01",guid:"1jsTiZBKD0Q9mN_8OaVtv8",anchor:[23,13,0],point:796,dir:815}
+];
+const byGuid=new Map(MACHINES.map(m=>[m.guid,m]));
+const byId=new Map(MACHINES.map(m=>[m.id,m]));
+const el=id=>document.getElementById(id);
+const canvas=el("canvas"),viewer=el("viewer");
+THREE.Object3D.DEFAULT_UP.set(0,0,1);
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setClearColor(0xe8eef0,1);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,1,0.05,3000);
+camera.up.set(0,0,1);
+const orbit=new OrbitControls(camera,renderer.domElement);
+orbit.enableDamping=true;orbit.dampingFactor=.08;
+const light1=new THREE.HemisphereLight(0xffffff,0x8899a2,2.0);scene.add(light1);
+const light2=new THREE.DirectionalLight(0xffffff,2.2);light2.position.set(20,-20,35);scene.add(light2);
+const grid=new THREE.GridHelper(80,80,0x9eaaaf,0xd4dade);grid.rotation.x=Math.PI/2;grid.position.z=-.01;scene.add(grid);
+const sceneRoot=new THREE.Group();scene.add(sceneRoot);
+const transform=new TransformControls(camera,renderer.domElement);
+scene.add(transform.getHelper());
+transform.setMode("translate");transform.setSpace("world");transform.setSize(.9);
+transform.showX=true;transform.showY=true;transform.showZ=true;
+let ifcApi=null,modelID=null,baseIfcText="",modelGroup=null;
+let originalRoots=new Map(),allRoots=new Map(),selectableMeshes=[];
+let classRoots=new Map(),classState=new Map();
+let selected=new Set(),multiPivot=null,copyCounter=0,annotations=[],annotationMarkers=[];
+let groups=new Map(),objectGroup=new Map(),groupCounter=0;
+let latestVariant=null,trimbleContext=null;
+let history=[],mode="translate",directDrag=null,loadGeneration=0;
+
+function setStatus(msg,bad=false){el("status").textContent=msg;el("detailStatus").textContent=msg;el("detailStatus").className=bad?"small error":"small";}
+function resize(){
+ const r=viewer.getBoundingClientRect();renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);
+ camera.aspect=Math.max(1,r.width)/Math.max(1,r.height);camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(viewer);resize();
+
+function decodeBase64(s){
+ const clean=String(s||"").replace(/\s+/g,"").replace(/=+$/,"");
+ if(clean.length%4===1)throw new Error("Eingebettete Demo-IFC ist unvollstaendig.");
+ const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+ const bytes=[];let buffer=0,bits=0;
+ for(const ch of clean){
+  const value=alphabet.indexOf(ch);
+  if(value<0)throw new Error("Ungueltiges Zeichen in der eingebetteten Demo-IFC.");
+  buffer=(buffer<<6)|value;bits+=6;
+  while(bits>=8){
+   bits-=8;bytes.push((buffer>>bits)&255);
+   buffer=bits?buffer&((1<<bits)-1):0;
+  }
+ }
+ return Uint8Array.from(bytes);
+}
+async function getDemoIfcBytes(){
+ if(!("DecompressionStream" in window))throw new Error("Dieser Browser unterstützt den Demo-IFC-Decoder nicht.");
+ setStatus("BUILD F9 · Demo-IFC Daten werden geladen …");
+ const chunks=[];
+ for(const name of DEMO_PARTS){
+  const url=new URL(name+"?build=F9",location.href);
+  let response;
+  try{
+   response=await fetch(url,{cache:"no-store"});
+  }catch(e){
+   throw new Error("Demo-Daten konnten nicht geladen werden ("+name+"): "+e.message);
+  }
+  if(!response.ok)throw new Error("Demo-Daten "+name+" HTTP "+response.status);
+  chunks.push((await response.text()).trim());
+ }
+ const encoded=chunks.join("");
+ if(encoded.length!==11868)throw new Error("Demo-Daten unvollstaendig: "+encoded.length+" statt 11868 Zeichen.");
+ const zipped=decodeBase64(encoded);
+ setStatus("BUILD F9 · Demo-IFC wird entpackt …");
+ try{
+  const stream=new Blob([zipped]).stream().pipeThrough(new DecompressionStream("gzip"));
+  const buf=await new Response(stream).arrayBuffer();
+  const bytes=new Uint8Array(buf);
+  if(bytes.length!==39827)throw new Error("IFC-Laenge "+bytes.length+" statt 39827 Byte.");
+  return bytes;
+ }catch(e){
+  throw new Error("Demo-IFC konnte nicht entpackt werden: "+e.message);
+ }
+}
+function materialFrom(pg){
+ const c=pg.color||{};const r=Number.isFinite(c.x)?c.x:(Number.isFinite(c.r)?c.r:.72);
+ const g=Number.isFinite(c.y)?c.y:(Number.isFinite(c.g)?c.g:.74);
+ const b=Number.isFinite(c.z)?c.z:(Number.isFinite(c.b)?c.b:.76);
+ const a=Number.isFinite(c.w)?c.w:(Number.isFinite(c.a)?c.a:1);
+ return new THREE.MeshPhongMaterial({color:new THREE.Color(r,g,b),transparent:a<.999,opacity:a,side:THREE.DoubleSide,shininess:25});
+}
+function makeGeometry(pg){
+ const g=ifcApi.GetGeometry(modelID,pg.geometryExpressID);
+ const rawV=ifcApi.GetVertexArray(g.GetVertexData(),g.GetVertexDataSize());
+ const rawI=ifcApi.GetIndexArray(g.GetIndexData(),g.GetIndexDataSize());
+ const count=Math.floor(rawV.length/6),pos=new Float32Array(count*3),nor=new Float32Array(count*3);
+ for(let i=0;i<count;i++){pos[i*3]=rawV[i*6];pos[i*3+1]=rawV[i*6+1];pos[i*3+2]=rawV[i*6+2];nor[i*3]=rawV[i*6+3];nor[i*3+1]=rawV[i*6+4];nor[i*3+2]=rawV[i*6+5]}
+ const geo=new THREE.BufferGeometry();geo.setAttribute("position",new THREE.BufferAttribute(pos,3));geo.setAttribute("normal",new THREE.BufferAttribute(nor,3));geo.setIndex(new THREE.BufferAttribute(new Uint32Array(rawI),1));
+ geo.applyMatrix4(new THREE.Matrix4().fromArray(pg.flatTransformation));
+ // web-ifc / Three.js liefert die Geometrie Y-up. Layout Planner arbeitet Z-up.
+ // +90 Grad um X bildet (x,y,z)_viewer auf (x,-z,y)_planner ab.
+ geo.applyMatrix4(new THREE.Matrix4().makeRotationX(Math.PI/2));
+ if(g.delete)g.delete();
+ return geo;
+}
+function clearCurrentModel(){
+ releaseMultiPivot();
+ transform.detach();selected.clear();selectableMeshes=[];originalRoots.clear();allRoots.clear();classRoots.clear();classState.clear();annotations=[];clearAnnotationMarkers();
+ if(modelGroup){sceneRoot.remove(modelGroup);modelGroup.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose()}});modelGroup=null}
+ if(ifcApi&&modelID!==null){try{ifcApi.CloseModel(modelID)}catch(e){}}
+ modelID=null;history=[];copyCounter=0;groups.clear();objectGroup.clear();groupCounter=0;latestVariant=null;el("variantActions").style.display="none";updateUI();
+}
+function getRootWorld(root){
+ const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();root.matrixWorld.decompose(p,q,s);
+ return{p,q,s};
+}
+function valueOf(v,fallback=""){
+ if(v==null)return fallback;
+ if(typeof v==="string"||typeof v==="number")return String(v);
+ if(v.value!=null)return String(v.value);
+ return fallback;
+}
+function getIfcMeta(expressID){
+ let line=null,typeCode=0,ifcClass="IfcObject",name="",guid="";
+ try{line=ifcApi.GetLine(modelID,expressID)}catch(_){}
+ try{typeCode=ifcApi.GetLineType(modelID,expressID)}catch(_){}
+ try{if(typeCode)ifcClass=ifcApi.GetNameFromTypeCode(typeCode)||ifcClass}catch(_){}
+ name=valueOf(line?.Name,"")||valueOf(line?.LongName,"")||valueOf(line?.ObjectType,"")||ifcClass+" #"+expressID;
+ guid=valueOf(line?.GlobalId,"");
+ return{expressID,typeCode,ifcClass,name,guid};
+}
+function registerClassRoot(root){
+ const cls=root.userData.ifcClass||"IfcObject";
+ if(!classRoots.has(cls))classRoots.set(cls,new Set());
+ classRoots.get(cls).add(root.userData.lpId);
+ if(!classState.has(cls))classState.set(cls,{visible:true,locked:false});
+}
+function isRootInteractive(root){
+ if(!root||!root.visible)return false;
+ const st=classState.get(root.userData.ifcClass);
+ return !st?.locked && st?.visible!==false;
+}
+function centerGenericRoot(root){
+ root.updateMatrixWorld(true);
+ const box=new THREE.Box3().setFromObject(root);
+ if(box.isEmpty())return;
+ const center=box.getCenter(new THREE.Vector3());
+ for(const ch of root.children){
+  if(ch.geometry)ch.geometry.translate(-center.x,-center.y,-center.z);
+ }
+ root.position.copy(center);
+ root.userData.basePosition=center.clone();
+ root.userData.baseRotation=new THREE.Euler(0,0,0);
+}
+function markSelectable(root){
+ root.traverse(o=>{if(o.isMesh){o.userData.machineRoot=root;selectableMeshes.push(o)}});
+}
+function recolorSelection(){
+ for(const root of allRoots.values()){
+  const on=selected.has(root.userData.lpId);
+  root.traverse(o=>{if(o.isMesh&&o.material&&"emissive" in o.material){o.material.emissive.setHex(on?0x0a485f:0x000000);o.material.emissiveIntensity=on?.45:0}});
+ }
+}
+function fitCamera(){
+ const box=new THREE.Box3().setFromObject(modelGroup||sceneRoot);if(box.isEmpty())return;
+ const center=box.getCenter(new THREE.Vector3()),size=box.getSize(new THREE.Vector3()),d=Math.max(size.x,size.y,size.z,10);
+ camera.position.set(center.x+d*.8,center.y-d*.9,center.z+d*.65);
+ orbit.target.copy(center);orbit.update();camera.near=Math.max(.03,d/5000);camera.far=Math.max(500,d*20);camera.updateProjectionMatrix();
+}
+async function ensureIfc(){
+ if(ifcApi)return;
+ const wasmUrl="https://cdn.jsdelivr.net/npm/web-ifc@0.0.77/web-ifc.wasm";
+ setStatus("BUILD F9 · IFC-Engine wird geladen …");
+ try{
+  ifcApi=new WebIFC.IfcAPI();
+  await ifcApi.Init((path,prefix)=>wasmUrl,true);
+ }catch(e){
+  ifcApi=null;
+  throw new Error("WASM/IFC-Engine konnte nicht geladen werden ("+wasmUrl+"): "+e.message);
+ }
+ setStatus("BUILD F9 · IFC-Engine bereit.");
+}
+async function loadIfcBytes(bytes,label,isDemo){
+ const generation=++loadGeneration;clearCurrentModel();await ensureIfc();
+ setStatus(label+" wird gelesen …");
+ if(isDemo)baseIfcText=new TextDecoder().decode(bytes);else baseIfcText=new TextDecoder().decode(bytes);
+ try{
+  modelID=ifcApi.OpenModel(bytes,{COORDINATE_TO_ORIGIN:false,CIRCLE_SEGMENTS:24});
+ }catch(e){
+  throw new Error("IFC OpenModel fehlgeschlagen: "+e.message);
+ }
+ if(modelID===-1)throw new Error("IFC OpenModel lieferte -1.");
+ modelGroup=new THREE.Group();modelGroup.name=label;sceneRoot.add(modelGroup);
+ const expressToMeta=new Map();
+ for(const meta of MACHINES){const eid=Number(ifcApi.GetExpressIdFromGuid(modelID,meta.guid));if(Number.isFinite(eid))expressToMeta.set(eid,meta)}
+ let meshCount=0;
+ ifcApi.StreamAllMeshes(modelID,flat=>{
+  if(generation!==loadGeneration)return;
+  const info=getIfcMeta(Number(flat.expressID));
+  const machine=expressToMeta.get(Number(flat.expressID));
+  const root=new THREE.Group();
+  root.userData.expressID=Number(flat.expressID);
+  root.userData.ifcClass=info.ifcClass;
+  root.userData.guid=info.guid||machine?.guid||"";
+  root.userData.isCopy=false;
+  root.userData.sourceId=machine?.id||("IFC-"+flat.expressID);
+  root.userData.lpId=machine?.id||("IFC-"+flat.expressID);
+  root.userData.name=machine?.name||info.name;
+  for(let i=0;i<flat.geometries.size();i++){
+   const pg=flat.geometries.get(i),geo=makeGeometry(pg),mesh=new THREE.Mesh(geo,materialFrom(pg));root.add(mesh);meshCount++;
+  }
+  if(machine){
+   // Demo-Maschinen behalten ihren bekannten Planungsanker.
+   const a=new THREE.Vector3(machine.anchor[0],machine.anchor[1],machine.anchor[2]);
+   root.children.forEach(ch=>{if(ch.geometry)ch.geometry.translate(-a.x,-a.y,-a.z)});
+   root.position.copy(a);root.userData.basePosition=a.clone();root.userData.baseRotation=new THREE.Euler(0,0,0);
+   originalRoots.set(machine.id,root);
+  }else{
+   // Alle weiteren IFC-Objekte bekommen den Dreh-/Verschiebepunkt in ihrer Objektmitte.
+   centerGenericRoot(root);
+  }
+  allRoots.set(root.userData.lpId,root);
+  registerClassRoot(root);
+  markSelectable(root);
+  modelGroup.add(root);
+ });
+ renderLayerPanel();
+ modelGroup.updateMatrixWorld(true);
+ for(const root of allRoots.values()){root.userData.lpBaseWorldMatrix=root.matrixWorld.toArray();root.userData.basePosition=root.position.clone();root.userData.baseQuaternion=root.quaternion.clone()}
+ fitCamera();pushHistory("Start");
+ setStatus(label+" geladen · "+allRoots.size+" IFC-Objekte · "+classRoots.size+" Klassen · "+meshCount+" Geometrien");
+ updateUI();
+}
+async function loadDemo(){
+ try{
+  setStatus("BUILD F9 · Demo-IFC wird entpackt …");
+  const bytes=await getDemoIfcBytes();
+  setStatus("BUILD F9 · Demo-IFC bereit ("+bytes.length+" Bytes)");
+  await loadIfcBytes(bytes,"Demo-Halle",true);
+ }catch(e){
+  setStatus("BUILD F9 · Fehler: "+e.message,true);
+  console.error(e);
+ }
+}
+function releaseMultiPivot(){
+ if(!multiPivot)return;
+ transform.detach();
+ const kids=[...multiPivot.children];for(const r of kids)modelGroup.attach(r);
+ sceneRoot.remove(multiPivot);multiPivot=null;
+}
+function rebuildTransform(){
+ releaseMultiPivot();
+ const roots=[...selected].map(id=>allRoots.get(id)).filter(Boolean);
+ if(!roots.length){transform.detach();return}
+ if(roots.length===1){transform.attach(roots[0]);return}
+ const center=new THREE.Vector3();roots.forEach(r=>center.add(r.getWorldPosition(new THREE.Vector3())));center.multiplyScalar(1/roots.length);
+ multiPivot=new THREE.Group();multiPivot.position.copy(center);sceneRoot.add(multiPivot);
+ roots.forEach(r=>multiPivot.attach(r));transform.attach(multiPivot);
+}
+function expandGroupedIds(ids){
+ const out=new Set();
+ for(const id of ids){
+  const gid=objectGroup.get(id);
+  if(gid&&groups.has(gid)){for(const mid of groups.get(gid))out.add(mid)}
+  else out.add(id);
+ }
+ return [...out];
+}
+function selectIds(ids,add=false,force=false){
+ releaseMultiPivot();
+ const expanded=expandGroupedIds(ids);
+ if(!add)selected.clear();
+ if(add&&expanded.length){
+  const allSelected=expanded.every(id=>selected.has(id));
+  for(const id of expanded){
+   const root=allRoots.get(id);
+   if(!root||(!force&&!isRootInteractive(root)))continue;
+   if(allSelected)selected.delete(id);else selected.add(id);
+  }
+ }else{
+  for(const id of expanded){
+   const root=allRoots.get(id);
+   if(!root||(!force&&!isRootInteractive(root)))continue;
+   selected.add(id);
+  }
+ }
+ rebuildTransform();recolorSelection();updateUI();
+}
+function clearSelection(){releaseMultiPivot();selected.clear();transform.detach();recolorSelection();updateUI()}
+function setClassVisibility(cls,visible){
+ const ids=classRoots.get(cls)||new Set();const st=classState.get(cls)||{visible:true,locked:false};st.visible=visible;classState.set(cls,st);
+ for(const id of ids){const r=allRoots.get(id);if(r)r.visible=visible;if(!visible)selected.delete(id)}
+ rebuildTransform();recolorSelection();renderLayerPanel();updateUI();
+}
+function setClassLocked(cls,locked){
+ const st=classState.get(cls)||{visible:true,locked:false};st.locked=locked;classState.set(cls,st);
+ if(locked){for(const id of classRoots.get(cls)||[])selected.delete(id)}
+ rebuildTransform();recolorSelection();renderLayerPanel();updateUI();
+}
+function selectClass(cls){
+ const st=classState.get(cls);if(st?.locked||st?.visible===false)return;
+ selectIds([...(classRoots.get(cls)||[])],false);
+}
+function renderLayerPanel(){
+ const box=el("layerList");if(!box)return;box.innerHTML="";
+ const entries=[...classRoots.entries()].sort((a,b)=>a[0].localeCompare(b[0]));
+ for(const [cls,ids] of entries){
+  const st=classState.get(cls)||{visible:true,locked:false};
+  const row=document.createElement("div");row.className="layerRow"+(st.visible?"":" off")+(st.locked?" locked":"");
+  const name=document.createElement("div");name.className="layerName";name.title=cls;name.innerHTML=escapeHtml(cls)+'<span class="layerCount">('+ids.size+')</span>';
+  const vis=document.createElement("button");vis.className="layerBtn";vis.title=st.visible?"Ausblenden":"Einblenden";vis.textContent=st.visible?"◉":"○";vis.onclick=()=>setClassVisibility(cls,!st.visible);
+  const lock=document.createElement("button");lock.className="layerBtn";lock.title=st.locked?"Entsperren":"Sperren";lock.textContent=st.locked?"🔒":"🔓";lock.onclick=()=>setClassLocked(cls,!st.locked);
+  const sel=document.createElement("button");sel.className="layerBtn";sel.title="Klasse auswählen";sel.textContent="✓";sel.disabled=st.locked||!st.visible;sel.onclick=()=>selectClass(cls);
+  row.append(name,vis,lock,sel);box.appendChild(row);
+ }
+}
+function setMode(next){
+ mode=next;transform.setMode(next);transform.setSpace("world");
+ transform.showX=true;transform.showY=true;transform.showZ=true;
+ ["moveBtn","moveSideBtn"].forEach(id=>el(id).classList.toggle("active",next==="translate"));
+ ["rotateBtn","rotateSideBtn"].forEach(id=>el(id).classList.toggle("active",next==="rotate"));
+}
+function pointerRay(e){
+ const r=canvas.getBoundingClientRect(),p=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1),ray=new THREE.Raycaster();ray.setFromCamera(p,camera);return ray;
+}
+const dragPlane=new THREE.Plane(new THREE.Vector3(0,0,1),0),dragPoint=new THREE.Vector3();
+function onPointerDown(e){
+ if(transform.axis)return;
+ const ray=pointerRay(e),hits=ray.intersectObjects(selectableMeshes,false);
+ const hit=hits.find(h=>isRootInteractive(h.object.userData.machineRoot));
+ if(!hit){if(!e.shiftKey)clearSelection();return}
+ const root=hit.object.userData.machineRoot;if(!root)return;
+ const id=root.userData.lpId;
+ if(e.shiftKey){selectIds([id],true);return}
+ if(!selected.has(id))selectIds([id],false);
+ if(mode!=="translate")return;
+ const target=multiPivot||allRoots.get(id);if(!target)return;
+ const wp=target.getWorldPosition(new THREE.Vector3());dragPlane.constant=-wp.z;
+ if(!ray.ray.intersectPlane(dragPlane,dragPoint))return;
+ directDrag={target,startPoint:dragPoint.clone(),startPos:target.position.clone(),moved:false};
+ orbit.enabled=false;e.preventDefault();e.stopPropagation();
+}
+function onPointerMove(e){
+ if(!directDrag)return;
+ const ray=pointerRay(e);if(!ray.ray.intersectPlane(dragPlane,dragPoint))return;
+ const d=dragPoint.clone().sub(directDrag.startPoint);d.z=0;directDrag.target.position.copy(directDrag.startPos).add(d);directDrag.moved=true;updateUI();
+}
+function onPointerUp(){
+ if(!directDrag)return;orbit.enabled=true;if(directDrag.moved)pushHistory("Verschieben");directDrag=null;updateUI();
+}
+canvas.addEventListener("pointerdown",onPointerDown,true);window.addEventListener("pointermove",onPointerMove,true);window.addEventListener("pointerup",onPointerUp,true);
+transform.addEventListener("mouseDown",()=>{orbit.enabled=false});
+transform.addEventListener("mouseUp",()=>{orbit.enabled=true;pushHistory(mode==="rotate"?"Drehen":"Verschieben");updateUI()});
+transform.addEventListener("objectChange",updateUI);
+
+function cloneMaterialSafe(mat){
+ if(Array.isArray(mat))return mat.map(m=>m.clone());
+ return mat?.clone?mat.clone():mat;
+}
+function cloneVisualNode(src){
+ let dst;
+ if(src.isMesh){
+  dst=new THREE.Mesh(src.geometry,cloneMaterialSafe(src.material));
+  dst.castShadow=src.castShadow;dst.receiveShadow=src.receiveShadow;
+ }else{
+  dst=new THREE.Group();
+ }
+ dst.name=src.name;
+ dst.position.copy(src.position);dst.quaternion.copy(src.quaternion);dst.scale.copy(src.scale);
+ for(const child of src.children)dst.add(cloneVisualNode(child));
+ return dst;
+}
+function deepCloneRoot(src,newId,newName){
+ const c=cloneVisualNode(src);
+ c.userData={lpId:newId,name:newName,isCopy:true,guid:null,sourceId:src.userData.sourceId||src.userData.lpId,ifcClass:src.userData.ifcClass||"IfcObject",expressID:null};
+ c.traverse(o=>{if(o.isMesh)o.userData.machineRoot=c});
+ return c;
+}
+function cleanupGroups(){
+ for(const [gid,members] of [...groups]){
+  for(const id of [...members])if(!allRoots.has(id)){members.delete(id);objectGroup.delete(id)}
+  if(members.size<2){
+   for(const id of members)objectGroup.delete(id);
+   groups.delete(gid);
+  }
+ }
+}
+function removeGroup(gid){
+ const members=groups.get(gid);if(!members)return;
+ for(const id of members)if(objectGroup.get(id)===gid)objectGroup.delete(id);
+ groups.delete(gid);
+}
+function groupSelected(){
+ if(selected.size<2){setStatus("Für eine Gruppe mindestens zwei IFC-Objekte auswählen.",true);return}
+ const ids=[...selected];
+ const oldGroups=new Set(ids.map(id=>objectGroup.get(id)).filter(Boolean));
+ for(const gid of oldGroups)removeGroup(gid);
+ groupCounter++;
+ const gid="GRP-"+String(groupCounter).padStart(3,"0");
+ const members=new Set(ids);groups.set(gid,members);
+ for(const id of members)objectGroup.set(id,gid);
+ pushHistory("Gruppe bilden");updateUI();
+ setStatus(gid+" mit "+members.size+" IFC-Objekten gebildet.");
+}
+function ungroupSelected(){
+ const gids=new Set([...selected].map(id=>objectGroup.get(id)).filter(Boolean));
+ if(!gids.size){setStatus("Auswahl gehört zu keiner Gruppe.");return}
+ for(const gid of gids)removeGroup(gid);
+ pushHistory("Gruppe auflösen");updateUI();
+ setStatus(gids.size+" Gruppe(n) aufgelöst.");
+}
+function copySelected(){
+ if(!selected.size)return;
+ const sourceIds=[...selected];
+ const sourceGroups=new Set(sourceIds.map(id=>objectGroup.get(id)).filter(Boolean));
+ const shouldGroupCopies=sourceGroups.size===1 && sourceIds.every(id=>objectGroup.get(id)===[...sourceGroups][0]);
+ releaseMultiPivot();
+ const newIds=[];
+ for(const id of [...selected]){
+  const src=allRoots.get(id);if(!src)continue;const sourceId=src.userData.sourceId||id;copyCounter++;
+  const nid=sourceId+"-COPY-"+String(copyCounter).padStart(2,"0"),name=(byId.get(sourceId)?.name||src.userData.name)+" Kopie "+copyCounter;
+  const c=deepCloneRoot(src,nid,name);c.position.copy(src.position);c.rotation.copy(src.rotation);c.position.x+=1.5;c.position.y+=1.5;
+  modelGroup.add(c);allRoots.set(nid,c);registerClassRoot(c);markSelectable(c);newIds.push(nid);
+ }
+ if(shouldGroupCopies&&newIds.length>1){
+   groupCounter++;const gid="GRP-"+String(groupCounter).padStart(3,"0");
+   groups.set(gid,new Set(newIds));for(const id of newIds)objectGroup.set(id,gid);
+ }
+ selectIds(newIds,false,true);pushHistory("Kopieren");updateUI();setStatus(newIds.length+" Kopie(n) erzeugt und ausgewählt.");
+}
+function resetSelected(){
+ if(!selected.size)return;releaseMultiPivot();
+ for(const id of selected){const r=allRoots.get(id);if(!r)continue;if(r.userData.isCopy){const gid=objectGroup.get(id);if(gid){groups.get(gid)?.delete(id);objectGroup.delete(id)}modelGroup.remove(r);allRoots.delete(id);classRoots.get(r.userData.ifcClass)?.delete(id);selectableMeshes=selectableMeshes.filter(m=>m.userData.machineRoot!==r)}else{r.position.copy(r.userData.basePosition);r.rotation.set(0,0,0)}} cleanupGroups();
+ selected.clear();transform.detach();pushHistory("Zurücksetzen");recolorSelection();updateUI();
+}
+function serialize(){
+ releaseMultiPivot();
+ const objects=[];
+ for(const [id,r] of allRoots){const w=getRootWorld(r),eu=new THREE.Euler().setFromQuaternion(w.q,"XYZ");objects.push({id,name:r.userData.name,sourceId:r.userData.sourceId,isCopy:!!r.userData.isCopy,ifcClass:r.userData.ifcClass,guid:r.userData.guid||null,position:[w.p.x,w.p.y,w.p.z],rotation:[eu.x,eu.y,eu.z]})}
+ return{schema:"LEANNOVA-LP-01",createdAt:new Date().toISOString(),copyCounter,groupCounter,objects,groups:[...groups].map(([id,members])=>({id,members:[...members]})),annotations:annotations.map(a=>({...a}))};
+}
+function download(name,data,type){const b=new Blob([data],{type:type||"application/octet-stream"}),u=URL.createObjectURL(b),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)}
+function saveProject(){const p=serialize();download("LEANNOVA_LP-01_Arbeitsstand.lp.json",JSON.stringify(p,null,2),"application/json");setStatus("LP-Arbeitsstand gespeichert.");}
+async function restoreProject(p){
+ if(p.schema!=="LEANNOVA-LP-01")throw new Error("Kein LP-01-Projekt.");
+ releaseMultiPivot();transform.detach();selected.clear();groups.clear();objectGroup.clear();
+ for(const [id,r] of [...allRoots])if(r.userData.isCopy){modelGroup.remove(r);allRoots.delete(id)}
+ selectableMeshes=selectableMeshes.filter(m=>!m.userData.machineRoot?.userData?.isCopy);
+ for(const [id,r] of originalRoots){r.position.copy(r.userData.basePosition);r.rotation.set(0,0,0)}
+ copyCounter=p.copyCounter||0;groupCounter=p.groupCounter||0;
+ for(const o of p.objects||[]){
+  let r=allRoots.get(o.id);
+  if(!r&&o.isCopy){const src=allRoots.get(o.sourceId)||originalRoots.get(o.sourceId);if(!src)continue;r=deepCloneRoot(src,o.id,o.name||o.id);if(o.ifcClass)r.userData.ifcClass=o.ifcClass;modelGroup.add(r);allRoots.set(o.id,r);registerClassRoot(r);markSelectable(r)}
+  if(r){r.position.fromArray(o.position||[0,0,0]);r.rotation.fromArray([...(o.rotation||[0,0,0]),"XYZ"])}
+ }
+ groups.clear();objectGroup.clear();
+ for(const g of p.groups||[]){
+  const members=new Set((g.members||[]).filter(id=>allRoots.has(id)));
+  if(members.size>1){groups.set(g.id,members);for(const id of members)objectGroup.set(id,g.id)}
+ }
+ annotations=Array.isArray(p.annotations)?p.annotations.map(a=>({...a})):[];
+ renderAnnotations();recolorSelection();pushHistory("Projekt geladen");updateUI();fitCamera();setStatus("LP-Projekt geladen.");
+}
+function projectSnapshot(){const p=serialize();return JSON.stringify(p)}
+function pushHistory(label){try{const s=projectSnapshot();if(history.length&&history[history.length-1].data===s)return;history.push({label,data:s});if(history.length>30)history.shift();el("undoBtn").disabled=history.length<2}catch(e){}}
+async function undo(){
+ if(history.length<2)return;history.pop();const prev=history[history.length-1];await restoreProject(JSON.parse(prev.data));history.pop();pushHistory(prev.label);setStatus("Undo: "+prev.label);
+}
+function addAnnotation(){
+ const text=el("noteInput").value.trim();if(!text||selected.size!==1)return;const objectId=[...selected][0],r=allRoots.get(objectId);if(!r)return;
+ annotations.push({id:"N-"+Date.now(),objectId,text,createdAt:new Date().toISOString()});el("noteInput").value="";renderAnnotations();pushHistory("Anmerkung");updateUI();
+}
+function clearAnnotationMarkers(){annotationMarkers.forEach(m=>{m.parent?.remove(m);m.geometry?.dispose();m.material?.dispose()});annotationMarkers=[]}
+function renderAnnotations(){
+ clearAnnotationMarkers();const box=el("notes");box.innerHTML="";
+ annotations.forEach(a=>{
+  const r=allRoots.get(a.objectId);const d=document.createElement("div");d.className="note";d.innerHTML="<b>"+escapeHtml(r?.userData.name||a.objectId)+"</b>"+escapeHtml(a.text);d.onclick=()=>selectIds([a.objectId],false);box.appendChild(d);
+  if(r){const bb=new THREE.Box3().setFromObject(r),p=bb.getCenter(new THREE.Vector3());p.z=bb.max.z+.25;const local=r.worldToLocal(p.clone());const marker=new THREE.Mesh(new THREE.SphereGeometry(.12,16,12),new THREE.MeshBasicMaterial({color:0xe88900}));marker.position.copy(local);r.add(marker);annotationMarkers.push(marker)}
+ });
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[ch]))}
+function isChanged(r){
+ if(r.userData.isCopy)return true;const p=r.getWorldPosition(new THREE.Vector3()),b=r.userData.basePosition;
+ return p.distanceTo(b)>.0005||Math.abs(normalizeAngle(r.rotation.z))>.0005;
+}
+function normalizeAngle(a){while(a>Math.PI)a-=2*Math.PI;while(a<-Math.PI)a+=2*Math.PI;return a}
+function updateUI(){
+ const roots=[...selected].map(id=>allRoots.get(id)).filter(Boolean);
+ el("selectedText").textContent=roots.length?roots.map(r=>r.userData.name).join(", "):"Kein IFC-Objekt ausgewählt";
+ if(roots.length===1){
+  const r=roots[0],w=getRootWorld(r),eu=new THREE.Euler().setFromQuaternion(w.q,"XYZ");
+  el("transformText").textContent=(r.userData.ifcClass||"IFC")+" · X "+w.p.x.toFixed(2)+" m · Y "+w.p.y.toFixed(2)+" m · Z "+w.p.z.toFixed(2)+" m · RX "+(eu.x*180/Math.PI).toFixed(1)+"° · RY "+(eu.y*180/Math.PI).toFixed(1)+"° · RZ "+(eu.z*180/Math.PI).toFixed(1)+"°";
+ }else el("transformText").textContent=roots.length>1?roots.length+" IFC-Objekte gemeinsam ausgewählt":"–";
+ const has=selected.size>0,single=selected.size===1;["copyBtn","copySideBtn","resetSelBtn"].forEach(id=>el(id).disabled=!has);el("addNoteBtn").disabled=!single;
+ const selectedGroups=new Set([...selected].map(id=>objectGroup.get(id)).filter(Boolean));
+ el("groupBtn").disabled=selected.size<2;
+ el("ungroupBtn").disabled=selectedGroups.size===0;
+ el("groupInfo").textContent=selectedGroups.size===1?([...[...selectedGroups]][0]+" · "+groups.get([...selectedGroups][0])?.size+" Objekte"):(selectedGroups.size>1?selectedGroups.size+" Gruppen ausgewählt":"Keine Gruppe");
+ el("machineN").textContent=[...allRoots.values()].filter(r=>!r.userData.isCopy).length;el("copyN").textContent=[...allRoots.values()].filter(r=>r.userData.isCopy).length;el("noteN").textContent=annotations.length;el("changeN").textContent=[...allRoots.values()].filter(isChanged).length;
+ el("undoBtn").disabled=history.length<2;
+}
+function ifcNum(v){if(Math.abs(v)<1e-12)return"0.";let s=v.toFixed(6).replace(/0+$/,"").replace(/\.$/,"");if(!s.includes("."))s+=".";return s}
+function replaceEntity(text,id,body){const re=new RegExp("^#"+id+"=.*;$","m");if(!re.test(text))throw new Error("IFC-Entity #"+id+" fehlt.");return text.replace(re,"#"+id+"="+body+";")}
+function exportIfc(){
+ try{
+  if(!baseIfcText)throw new Error("Keine IFC geladen.");
+  const result=buildIfcVariant({THREE,sourceText:baseIfcText,allRoots,releaseMultiPivot});
+  const source=(trimbleContext?.name||modelGroup?.name||"Layout").replace(/\.ifc$/i,"").replace(/[^\w\-äöüÄÖÜ]/g,"_").slice(0,75);
+  const date=new Date().toISOString().slice(0,10).replace(/-/g,"");
+  const fname=source+"_LP_"+date+"_"+Math.floor(Date.now()/1000)+".ifc";
+  latestVariant={...result,name:fname,context:trimbleContext};
+  el("variantActions").style.display="block";
+  el("variantInfo").textContent="IFC geprüft · "+result.report.modified+" verschoben/gedreht · "+result.report.copyCount+" Kopien · "+result.report.entities+" IFC-Entities · "+fname;
+  el("variantTrimbleBtn").disabled=!trimbleContext;
+  el("variantHint").textContent=trimbleContext?"Trimble-Upload startet nur nach deiner Bestätigung. Originaldatei wird nicht ersetzt.":"Die IFC wurde geprüft; Upload ist nur beim Start aus Trimble verfügbar.";
+  setStatus("Geprüfte neue IFC-Variante bereit · "+fname);
+ }catch(e){
+  latestVariant=null;el("variantActions").style.display="none";setStatus(e.message,true);console.error(e);
+ }
+}
+function downloadVariant(){
+ if(!latestVariant)return;
+ download(latestVariant.name,latestVariant.text,"application/x-step");
+}
+function sendVariantToTrimble(){
+ if(!latestVariant||!trimbleContext)return;
+ if(!confirm("Neue Datei \""+latestVariant.name+"\" in Trimble erstellen? Die Original-IFC wird NICHT überschrieben."))return;
+ const opener=window.opener;
+ if(!opener){setStatus("Trimble-Fensterverbindung fehlt. Bitte IFC herunterladen.",true);return}
+ const buf=new TextEncoder().encode(latestVariant.text).buffer;
+ opener.postMessage({type:"LP_F9_UPLOAD_VARIANT",name:latestVariant.name,sourceModelId:trimbleContext.modelId,sourceVersionId:trimbleContext.versionId,sourceName:trimbleContext.name,buffer:buf},location.origin,[buf]);
+ setStatus("Upload-Anfrage an Trimble gesendet. Bitte Status im Trimble-Panel kontrollieren.");
+}
+
+async function rotateAndBakeModel(axis,angle){
+ if(!modelGroup)return;
+ releaseMultiPivot();transform.detach();selected.clear();
+ const q=new THREE.Quaternion();
+ if(axis==="x")q.setFromAxisAngle(new THREE.Vector3(1,0,0),angle);
+ else q.setFromAxisAngle(new THREE.Vector3(0,1,0),angle);
+ modelGroup.quaternion.premultiply(q);
+ modelGroup.updateMatrixWorld(true);
+ const children=[...modelGroup.children];
+ for(const child of children)sceneRoot.attach(child);
+ modelGroup.position.set(0,0,0);modelGroup.rotation.set(0,0,0);modelGroup.scale.set(1,1,1);modelGroup.updateMatrixWorld(true);
+ for(const child of children)modelGroup.attach(child);
+ for(const r of originalRoots.values()){
+  r.userData.basePosition=r.position.clone();
+  r.userData.baseRotationZ=r.rotation.z;
+ }
+ history=[];pushHistory("Arbeitsebene ausgerichtet");
+ recolorSelection();updateUI();fitCamera();
+ setStatus("Arbeitsebene um "+(angle*180/Math.PI).toFixed(0)+"° um "+axis.toUpperCase()+" ausgerichtet.");
+}
+function topView(){
+ const box=new THREE.Box3().setFromObject(modelGroup||sceneRoot),c=box.getCenter(new THREE.Vector3()),s=box.getSize(new THREE.Vector3()),d=Math.max(s.x,s.y,10);
+ camera.position.set(c.x,c.y,c.z+d*1.35);camera.up.set(0,1,0);orbit.target.copy(c);orbit.update();
+ setTimeout(()=>camera.up.set(0,0,1),50);
+}
+el("showAllLayersBtn").onclick=()=>{for(const cls of classRoots.keys())setClassVisibility(cls,true)};
+el("unlockAllLayersBtn").onclick=()=>{for(const cls of classRoots.keys())setClassLocked(cls,false)};
+el("alignXpBtn").onclick=()=>rotateAndBakeModel("x",Math.PI/2);
+el("alignXmBtn").onclick=()=>rotateAndBakeModel("x",-Math.PI/2);
+el("alignYpBtn").onclick=()=>rotateAndBakeModel("y",Math.PI/2);
+el("alignYmBtn").onclick=()=>rotateAndBakeModel("y",-Math.PI/2);
+el("moveBtn").onclick=()=>setMode("translate");el("moveSideBtn").onclick=()=>setMode("translate");el("rotateBtn").onclick=()=>setMode("rotate");el("rotateSideBtn").onclick=()=>setMode("rotate");
+el("copyBtn").onclick=copySelected;el("copySideBtn").onclick=copySelected;el("resetSelBtn").onclick=resetSelected;el("groupBtn").onclick=groupSelected;el("ungroupBtn").onclick=ungroupSelected;el("undoBtn").onclick=undo;el("topBtn").onclick=topView;
+el("addNoteBtn").onclick=addAnnotation;el("saveProjectBtn").onclick=saveProject;el("exportIfcBtn").onclick=exportIfc;
+el("variantDownloadBtn").onclick=downloadVariant;el("variantTrimbleBtn").onclick=sendVariantToTrimble;
+el("loadProjectBtn").onclick=()=>el("loadProjectInput").click();el("loadProjectInput").onchange=async e=>{try{const f=e.target.files[0];if(!f)return;await restoreProject(JSON.parse(await f.text()))}catch(err){setStatus("Projekt konnte nicht geladen werden: "+err.message,true)}e.target.value=""};
+el("loadIfcBtn").onclick=()=>el("loadIfcInput").click();el("loadIfcInput").onchange=async e=>{try{const f=e.target.files[0];if(!f)return;await loadIfcBytes(new Uint8Array(await f.arrayBuffer()),f.name,false)}catch(err){setStatus("IFC konnte nicht geladen werden: "+err.message,true)}e.target.value=""};
+window.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();undo()}if(e.key==="Escape")clearSelection();if(e.key.toLowerCase()==="g")setMode("translate");if(e.key.toLowerCase()==="r")setMode("rotate")});
+function animate(){requestAnimationFrame(animate);orbit.update();renderer.render(scene,camera)}animate();
+
+function trimbleIfcHead(bytes){
+ return new TextDecoder("utf-8",{fatal:false}).decode(bytes.slice(0,Math.min(bytes.length,512))).replace(/^\uFEFF/,"").trimStart();
+}
+async function loadTrimbleMessage(data){
+ try{
+  const bytes=data.buffer instanceof ArrayBuffer?new Uint8Array(data.buffer):null;
+  if(!bytes||!bytes.length)throw new Error("Keine IFC-Daten von Trimble erhalten.");
+  const head=trimbleIfcHead(bytes);
+  if(!head.startsWith("ISO-10303-21")){
+   const hex=[...bytes.slice(0,12)].map(v=>v.toString(16).padStart(2,"0")).join(" ");
+   throw new Error("Kein STEP-IFC · "+bytes.length+" Byte · Signatur "+hex+" · Text "+JSON.stringify(head.slice(0,60)));
+  }
+  setStatus("BUILD F9 · Trimble-IFC "+(data.name||"")+" validiert · "+bytes.length+" Byte · wird geladen …");
+  trimbleContext={modelId:data.modelId,versionId:data.versionId,name:data.name};
+  await loadIfcBytes(bytes,data.name||"Trimble-Modell",false);
+ }catch(e){setStatus("Trimble-Modell konnte nicht geladen werden: "+e.message,true)}
+}
+window.addEventListener("message",e=>{
+ if(e.origin===location.origin&&e.data?.type==="LP_F9_UPLOAD_RESULT"){setStatus(e.data.ok?"Neue IFC in Trimble angelegt: "+e.data.name:"Trimble-Upload: "+e.data.message,!e.data.ok);return}
+ if(e.origin!==location.origin||e.data?.type!=="LP_LOAD_IFC")return;
+ loadTrimbleMessage(e.data);
+});
+const sourceMode=new URLSearchParams(location.search).get("source");
+if(sourceMode==="trimble"){
+ setStatus("BUILD F9 · Warte auf Modell aus Trimble …");
+ try{window.opener?.postMessage({type:"LP_READY"},location.origin)}catch(_){}
+}else{
+ loadDemo();
+}
+</script>
+</body></html>
