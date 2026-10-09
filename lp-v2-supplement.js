@@ -54,7 +54,7 @@ export function createSupplementIfc(THREE,objects){
   const globalPosition=pt(pos.x,pos.y,pos.z),refX=d(axisX.x,axisX.y,axisX.z),refZ=d(axisZ.x,axisZ.y,axisZ.z);
   const localAxis=add("IFCAXIS2PLACEMENT3D",[ref(globalPosition),ref(refZ),ref(refX)]);
   const placement=add("IFCLOCALPLACEMENT",["$",ref(localAxis)]);
-  const planeXY=add("IFCAXIS2PLACEMENT2D",[ref(pt(0,0,0)),"$"]);
+  const point2D=add("IFCCARTESIANPOINT",["(0.,0.)"]);const planeXY=add("IFCAXIS2PLACEMENT2D",[ref(point2D),"$"]);
   const profile=add("IFCRECTANGLEPROFILEDEF",[".AREA.","$",ref(planeXY),fmt(dims[0]),fmt(dims[1])]);
   const bottom=pt(0,0,-dims[2]/2);
   const extrudeAxis=add("IFCAXIS2PLACEMENT3D",[ref(bottom),"$","$"]);
@@ -62,7 +62,7 @@ export function createSupplementIfc(THREE,objects){
   const hex=mesh.material?.color?.getHex()??0x9aabb5;
   const cr=((hex>>16)&255)/255,cg=((hex>>8)&255)/255,cb=(hex&255)/255;
   const color=add("IFCCOLOURRGB",["$",fmt(cr),fmt(cg),fmt(cb)]);
-  const shade=add("IFCSURFACESTYLESHADING",[ref(color),"$"]);
+  const shade=add("IFCSURFACESTYLESHADING",[ref(color)]);
   const style=add("IFCSURFACESTYLE",["'LP-Farbe'",".BOTH.","("+ref(shade)+")"]);
   const assign=add("IFCPRESENTATIONSTYLEASSIGNMENT",["("+ref(style)+")"]);
   add("IFCSTYLEDITEM",[ref(solid),"("+ref(assign)+")","$"]);
