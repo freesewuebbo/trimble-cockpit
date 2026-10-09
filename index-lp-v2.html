@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LEANNOVA Layout Planner LP-01</title>
+<style>
+body{margin:0;font-family:"Segoe UI",Arial,sans-serif;color:#17252c;background:#fff}.p{padding:14px}.tag{display:inline-block;background:#063b55;color:#fff;font-weight:800;padding:4px 7px;border-radius:4px;font-size:12px;margin-right:6px}.build{background:#009ed2}
+h1{font-size:20px;color:#063b55;margin:10px 0 5px}p,.small{font-size:12px;line-height:1.45;color:#68777e}.small{font-size:10px}
+.status{font-size:11px;color:#68777e;margin:8px 0;padding:7px;border:1px solid #d4dde1;border-radius:5px;background:#f7f9fa;word-break:break-word}
+.models{display:flex;flex-direction:column;gap:5px}.model{border:1px solid #d4dde1;border-radius:5px;padding:7px;display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center}.model b{display:block;font-size:12px;color:#063b55}.model span{font-size:10px;color:#68777e}
+button{min-height:36px;border:1px solid #bfcbd0;border-radius:5px;background:#fff;font-weight:700;cursor:pointer;padding:7px}.wide{width:100%;margin-top:7px}.primary{background:#063b55;color:#fff;border-color:#063b55}
+</style>
+<script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script></head>
+<body><div class="p">
+<span class="tag">LP-V2</span><span class="tag build">VERSION 2 · TEST</span>
+<h1>Layout Planner</h1>
+<p>Mehrere IFC-Fachmodelle gemeinsam laden – Originaldateien bleiben unverändert.</p>
+<div class="status" id="status">Verbinde mit Trimble …</div>
+<div id="models" class="models"></div><button class="wide primary" id="loadSelected">Ausgewählte IFCs gemeinsam öffnen ↗</button>
+<button class="wide" id="refresh">Geladene Modelle aktualisieren</button>
+<button class="wide primary" id="demo">Demo-Halle öffnen ↗</button>
+<div class="small">Version 2 ist unabhängig von LP-01/F12. Der Rückexport nutzt den Layout-Planner-Projektordner.</div>
+</div>
+<script type="module">
+import { uploadNewIfcVariant } from "./lp-v2-trimble-upload.js?build=V2";
+import { downloadOriginalIfc } from "./lp-trimble-source-f12.js?build=V2";
+let API=null;let activeUpload=null;let modelSources=new Map();let modelList=[];let selectedModelIds=new Set();let activePlanner=null;let pendingPayload=null;const status=document.getElementById("status"),modelsBox=document.getElementById("models");
+const LP_URL="https://freesewuebbo.github.io/trimble-cockpit/layout-planner-v2.html?build=V2";
+const enc=new TextEncoder(),dec=new TextDecoder("utf-8",{fatal:false});
+const setStatus=s=>status.textContent=s;
+const clean=s=>String(s||"").replace(/^\uFEFF/,"").trimStart();
+const isIfcText=s=>clean(s).startsWith("ISO-10303-21");
+function decodeBase64(s){
+ let x=String(s||"").trim().replace(/^data:[^,]*,/,"").replace(/\s+/g,"");const r=x.length%4;if(r)x+="=".repeat(4-r);
+ const bin=atob(x),out=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)out[i]=bin.charCodeAt(i);return out;
+}
+async function normalizeIfcContent(v){
+ let bytes,source;
+ if(v instanceof Blob){source="Blob";bytes=new Uint8Array(await v.arrayBuffer())}
+ else if(typeof v==="string"){if(isIfcText(v)){source="Rohtext";bytes=enc.encode(v)}else{source="String/Base64";bytes=decodeBase64(v)}}
+ else if(v instanceof ArrayBuffer){source="ArrayBuffer";bytes=new Uint8Array(v)}
+ else if(ArrayBuffer.isView(v)){source="TypedArray";bytes=new Uint8Array(v.buffer,v.byteOffset,v.byteLength)}
+ else throw new Error("Unbekannter Dateiinhalt: "+Object.prototype.toString.call(v));
+ const head=clean(dec.decode(bytes.slice(0,512)));
+ if(isIfcText(head))return{bytes,source};
+ if(bytes[0]===0x1f&&bytes[1]===0x8b){
+   const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+   bytes=new Uint8Array(await new Response(stream).arrayBuffer());
+   if(isIfcText(dec.decode(bytes.slice(0,512))))return{bytes,source:source+"→gzip"};
+ }
+ const ascii=dec.decode(bytes).trim();
+ if(ascii.length>32&&/^[A-Za-z0-9+/=\r\n\s]+$/.test(ascii)){
+   try{const d=decodeBase64(ascii);if(isIfcText(dec.decode(d.slice(0,512))))return{bytes:d,source:source+"→Base64"}}catch(_){}
+ }
+ const hex=[...bytes.slice(0,12)].map(x=>x.toString(16).padStart(2,"0")).join(" ");
+ throw new Error("Kein STEP-IFC · Quelle "+source+" · "+bytes.length+" Byte · "+hex+" · "+JSON.stringify(head.slice(0,70)));
+}
+
+async function readModel(m){
+ let bytes=null,name=m.name,versionId=m.versionId,sourceKind="Viewer";
+ try{
+  const file=await API.viewer.getLoadedModel(m.id);
+  if(file?.blob==null)throw Error("Viewer enthält keine IFC-Rohdaten");
+  const norm=await normalizeIfcContent(file.blob);
+  bytes=norm.bytes;name=file.name||name;sourceKind=norm.source;
+ }catch(err){
+  setStatus("Lade IFC-Quelldatei aus Trimble: "+m.name);
+  const p=await API.project.getProject();
+  const auth=await API.extension.requestPermission("accesstoken");
+  const token=getAccessTokenFromResult(auth);
+  if(!token)throw Error("Berechtigung für Quelldatei fehlt");
+  const file=await downloadOriginalIfc({accessToken:token,projectId:p?.id||p?.projectId,
+   projectLocation:p?.location||p?.region||"",
+   sourceFileId:m.id,preferredVersionId:m.versionId,onProgress:setStatus});
+  bytes=file.bytes;name=file.name||name;versionId=file.versionId;sourceKind="Original-IFC";
+ }
+ modelSources.set(m.id,{name,modelId:m.id,versionId});
+ setStatus(name+" · "+sourceKind+" · "+bytes.length+" Byte");
+ return{name,buffer:bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),
+  trimble:{name,modelId:m.id,versionId}};
+}
+async function dispatchModelBundle(models,openWindow=true){
+ if(!API)throw Error("Trimble-Viewer ist nicht verbunden.");
+ const selectedModels=models.filter(Boolean);
+ if(!selectedModels.length)throw Error("Bitte IFC-Modelle markieren.");
+ let win=activePlanner;
+ if(openWindow||!win||win.closed){
+  win=window.open(LP_URL+"&source=trimble","_blank");
+  if(!win)throw Error("Pop-up blockiert");
+  activePlanner=win;
+ }
+ const files=[];
+ for(const m of selectedModels){
+  setStatus("IFC-Quelldatei wird gelesen: "+m.name);
+  files.push(await readModel(m));
+ }
+ const payload={type:"LP_V2_IFCS",models:files};
+ pendingPayload={win,payload};
+ setStatus(files.length+" IFC-Modelle vorbereitet.");
+ // Retain buffers until the LP announces readiness; fallback avoids infinite wait.
+ setTimeout(()=>{if(pendingPayload?.win===win){win.postMessage(payload,location.origin);pendingPayload=null}},2200);
+}
+async function openModel(m){return dispatchModelBundle([m],true)}
+
+async function refresh(){
+ try{
+  const list=await API.viewer.getModels("loaded");
+  modelsBox.innerHTML="";
+  modelList=(list||[]).filter(m=>String(m.name||"").toLowerCase().endsWith(".ifc")||String(m.type||"").toLowerCase().includes("ifc"));
+  if(!modelList.length){setStatus("Keine geladene IFC. Bitte die IFCs im Trimble-Viewer laden.");return}
+  for(const m of modelList){
+   const row=document.createElement("div");row.className="model";
+   const text=document.createElement("div");
+   text.innerHTML="<b>"+m.name.replace(/</g,"&lt;")+"</b><span>"+(m.type||"IFC")+"</span>";
+   const check=document.createElement("input");check.type="checkbox";check.checked=selectedModelIds.has(m.id);
+   check.style.width="20px";check.style.height="20px";
+   check.onchange=()=>{if(check.checked)selectedModelIds.add(m.id);else selectedModelIds.delete(m.id)};
+   row.style.gridTemplateColumns="20px 1fr auto";
+   const button=document.createElement("button");button.textContent="Einzeln ↗";button.onclick=()=>openModel(m);
+   row.append(check,text,button);modelsBox.append(row);
+  }
+  setStatus(modelList.length+" geladene IFC-Modelle gefunden.");
+ }catch(e){setStatus("Trimble-Modelle konnten nicht gelesen werden: "+e.message)}
+}
+async function connect(){
+ try{
+  API=await TrimbleConnectWorkspace.connect(window.parent,(event,args)=>{},30000);
+  await refresh();
+ }catch(e){setStatus("Trimble-Verbindung fehlgeschlagen: "+e.message)}
+}
+function getAccessTokenFromResult(raw){
+ if(typeof raw==="string")return raw;
+ if(raw&&typeof raw==="object")return raw.accessToken||raw.token||raw.value||raw.data?.accessToken||null;
+ return null;
+}
+
+window.addEventListener("message",async e=>{
+ if(e.origin!==location.origin||!e.source||!API||!e.data)return;
+ const msg=e.data;
+ if(msg.type==="LP_V2_READY"&&pendingPayload){
+  const {win,payload}=pendingPayload;if(win===e.source){pendingPayload=null;win.postMessage(payload,location.origin);}
+  return;
+ }
+ if(msg.type==="LP_V2_MODEL_REQUEST"){
+  try{
+   const ms=modelList.filter(m=>selectedModelIds.has(m.id));
+   await dispatchModelBundle(ms,false);
+  }catch(err){setStatus("Zusatzimport fehlgeschlagen: "+err.message)}
+  return;
+ }
+ if(msg.type!=="LP_V2_EXPORT_FILES")return;
+ if(activeUpload){e.source.postMessage({type:"LP_V2_EXPORT_STATUS",ok:false,message:"Upload läuft bereits"},e.origin);return}
+ if(!Array.isArray(msg.files)||!msg.files.length||msg.files.length>15){
+  e.source.postMessage({type:"LP_V2_EXPORT_STATUS",ok:false,message:"Ungültige Anzahl Konzeptdateien."},e.origin);return;
+ }
+ activeUpload=true;
+ const results=[];
+ try{
+  const project=await API.project.getProject();
+  const token=getAccessTokenFromResult(await API.extension.requestPermission("accesstoken"));
+  if(!token)throw Error("Trimble-Schreibberechtigung nicht erteilt.");
+  for(const file of msg.files){
+   const ref=file.source||modelSources.values().next().value;
+   if(!ref)throw Error("Originaldatei für Projektzuordnung fehlt.");
+   const src=modelSources.get(ref.modelId);
+   if(!src)throw Error("Quellmodell nicht über dieses Trimble-Projekt geladen: "+ref.modelId);
+   setStatus("Neue IFC wird übertragen: "+file.name);
+   const result=await uploadNewIfcVariant({
+    accessToken:token,projectId:project?.id||project?.projectId,
+    projectLocation:project?.location||project?.region||"",
+    sourceFileId:src.modelId,sourceVersionId:src.versionId,sourceName:src.name,
+    targetName:file.name,buffer:file.buffer,onProgress:setStatus
+   });
+   results.push(result);
+  }
+  const msg=results.length+" neue IFC-Datei(en) im Projektordner Layout-Planner gespeichert.";
+  setStatus(msg);e.source.postMessage({type:"LP_V2_EXPORT_STATUS",ok:true,message:msg,files:results},e.origin);
+ }catch(err){
+  const msg="Upload teilweise/noch nicht abgeschlossen: "+err.message+
+   (results.length?" ("+results.length+" Dateien bereits erfolgreich angelegt. Nicht erneut hochladen.)":"");
+  setStatus(msg);e.source.postMessage({type:"LP_V2_EXPORT_STATUS",ok:false,message:msg,files:results},e.origin);
+ }finally{activeUpload=null}
+});
+
+document.getElementById("loadSelected").onclick=()=>dispatchModelBundle(modelList.filter(m=>selectedModelIds.has(m.id)),true).catch(e=>setStatus(e.message));
+document.getElementById("refresh").onclick=refresh;document.getElementById("demo").onclick=()=>window.open(LP_URL,"_blank","noopener");connect();
+</script></body></html>
