@@ -439,6 +439,7 @@ async function loadProjectFile(e){
  }catch(err){setStatus("Projekt konnte nicht geladen werden: "+err.message,true)}finally{e.target.value=""}
 }
 function reviewExports(){setStatus("Prüfe IFC-Konzepte …");currentExports=[];const notes=[];
+ const stand="V002_"+new Date().toISOString().replace(/[-:]/g,"").replace("T","_").slice(0,15);
  for(const m of models.values()){
   const roots=new Map(modelEntries(m.key).filter(r=>!r.userData.deleted).map(r=>[r.userData.lpId,r]));
   const deleted=modelEntries(m.key).filter(r=>r.userData.deleted);
@@ -448,10 +449,13 @@ function reviewExports(){setStatus("Prüfe IFC-Konzepte …");currentExports=[];
    const result=buildIfcVariant({THREE,sourceText:m.source,allRoots:roots,releaseMultiPivot:releasePivot,basis:"identity"});
    const temp=ifcApi.OpenModel(new TextEncoder().encode(result.text),{COORDINATE_TO_ORIGIN:false});
    if(temp===-1)throw Error("Web-ifc Rückimport fehlgeschlagen");ifcApi.CloseModel(temp);
-   const name=safeName(m.name.replace(/\.ifc$/i,""))+"_LP_V002.ifc";
+   const name=safeName(m.name.replace(/\.ifc$/i,""))+"_LP_"+stand+".ifc";
    currentExports.push({name,text:result.text,source:m});notes.push(name+" · exportiert");
   }catch(err){
-   if(String(err.message||"").includes("keine geometrischen Änderungen"))notes.push(m.name+": unverändert");
+   if(String(err.message||"").includes("keine geometrischen Änderungen")){
+    const name=safeName(m.name.replace(/\.ifc$/i,""))+"_LP_"+stand+".ifc";
+    currentExports.push({name,text:m.source,source:m});notes.push(name+" · unverändert übernommen");
+   }
    else notes.push(m.name+": "+err.message);
   }
  }
@@ -461,7 +465,7 @@ function reviewExports(){setStatus("Prüfe IFC-Konzepte …");currentExports=[];
    const result=createSupplementIfc(THREE,additions);
    const temp=ifcApi.OpenModel(new TextEncoder().encode(result),{COORDINATE_TO_ORIGIN:false});
    if(temp===-1)throw Error("Web-ifc Rückimport fehlgeschlagen");ifcApi.CloseModel(temp);
-   currentExports.push({name:"Layout-Ergaenzungen_LP_V002.ifc",text:result,source:null});
+   currentExports.push({name:"Layout-Ergaenzungen_LP_"+stand+".ifc",text:result,source:null});
    notes.push(additions.length+" neue Objekte in Ergänzungs-IFC");
   }catch(e){notes.push("Ergänzungs-IFC FEHLER: "+e.message)}
  }
@@ -508,7 +512,9 @@ function bind(){
  $("projectSaveTop").onclick=saveProject;$("saveProject").onclick=saveProject;
  $("loadProject").onclick=()=>$("projectInput").click();$("projectInput").onchange=loadProjectFile;
  $("exportTop").onclick=reviewExports;$("exportBtn").onclick=reviewExports;
- $("sendTrimble").onclick=()=>{if(!trimbleConnected)return;const list=currentExports.map(t=>({name:t.name,buffer:new TextEncoder().encode(t.text).buffer,source:t.source?.trimble||null}));window.opener?.postMessage({type:"LP_V2_EXPORT_FILES",files:list},location.origin);setStatus("Trimble-Exportauftrag übermittelt.")};
+ $("sendTrimble").onclick=()=>{if(!trimbleConnected)return;const list=currentExports.map(t=>({name:t.name,buffer:new TextEncoder().encode(t.text).buffer,source:t.source?.trimble||null}));
+ if(!confirm(list.length+" neue IFC-Dateien unter Layout-Planner in Trimble Connect speichern? Originaldateien bleiben unverändert."))return;
+ window.opener?.postMessage({type:"LP_V2_EXPORT_FILES",files:list},location.origin);setStatus("Trimble-Exportauftrag übermittelt.")};
  $("pointcloudLoad").onclick=()=>{const url=$("pointcloudUrl").value.trim();$("pointcloudInfo").textContent=url?"Server-Livezugriff noch nicht eingerichtet. Erforderlich: VPN-HTTPS-Tileserver (Potree/COPC), CORS und georeferenzierte Metadaten.":"Bitte VPN-HTTPS-Streamingadresse angeben.";setStatus("E57-Streaming: Serveranbindung technisch offen",true)};
  $("pointcloudHide").onclick=()=>{if(pointcloud){pointcloud.removeFromParent();pointcloud=null}};
  window.addEventListener("keydown",e=>{if(e.target instanceof HTMLInputElement)return;
