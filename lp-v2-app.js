@@ -320,6 +320,24 @@ function duplicate(n=1,dx=1.5,dy=0){
  }
  select(made);capture("Dupliziert");renderClasses();setStatus(made.length+" Kopien erstellt.");
 }
+function duplicateGrid(columns,rows,dx,dy){
+ const rs=activeRoots();if(!rs.length)return;releasePivot();
+ if(columns*rows*rs.length>500)return setStatus("Raster über 500 Objekte ist im Testbuild gesperrt.",true);
+ const ids=[];
+ for(let j=0;j<rows;j++)for(let i=0;i<columns;i++){
+  if(i===0&&j===0)continue;
+  for(const r of rs){
+   const cp=cloneObject(r);cp.position.x+=i*dx;cp.position.y+=j*dy;ids.push(cp.userData.lpId);
+  }
+ }
+ if(!ids.length)return;
+ if(rs.length>1){
+  const id="GRP-"+(++groupIndex).toString().padStart(3,"0");
+  groups.set(id,{id,name:"Rastergruppe",items:new Set(ids)});
+  for(const item of ids)groupOf.set(item,id);
+ }
+ select(ids);capture("Raster");renderClasses();setStatus(ids.length+" zusätzliche Rasterobjekte erstellt.");
+}
 function deleteSelected(){
  const rs=activeRoots();if(!rs.length)return;
  if(!confirm(rs.length+" ausgewählte Objekte im Konzept löschen? Die Original-IFC bleibt unverändert."))return;
@@ -495,7 +513,7 @@ function bind(){
  $("modeMove").onclick=()=>setMode("translate");$("modeRotate").onclick=()=>setMode("rotate");$("modeScale").onclick=()=>setMode("scale");$("modeSelect").onclick=()=>setMode("select");
  document.querySelectorAll("[data-draw]").forEach(b=>b.onclick=()=>chooseDraw(b.dataset.draw));
  $("drawCancel").onclick=()=>{drawKind=null;drawStart=null;clearPreview()};
- $("copyButton").onclick=()=>duplicate(1,1.5,1.5);$("repeatButton").onclick=()=>duplicate(Math.min(150,Math.max(1,num("repeatN",10))),num("repeatX",1.5),num("repeatY",0));
+ $("copyButton").onclick=()=>duplicate(1,1.5,1.5);$("repeatButton").onclick=()=>duplicateGrid(Math.min(150,Math.max(1,num("repeatN",10))),Math.min(40,Math.max(1,num("repeatRows",1))),num("repeatX",1.5),num("repeatY",1.5));
  $("deleteButton").onclick=deleteSelected;$("groupButton").onclick=groupSelected;$("ungroupButton").onclick=ungroup;
  $("undoTop").onclick=undo;$("redoTop").onclick=redo;$("selectClear").onclick=clearSelection;
  $("viewTop").onclick=topView;$("fitTop").onclick=fitAll;$("fitSelected").onclick=()=>zoomTo(activeRoots());
