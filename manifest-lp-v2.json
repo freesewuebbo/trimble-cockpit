@@ -1,0 +1,9 @@
+{
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-lp-v2.html?build=V2",
+  "title": "LEANNOVA Layout Planner – Version 2 (Test)",
+  "description": "Getrennte Layout-Planner-Testversion: mehrere IFC-Fachmodelle, Zeichnen, Skalieren, Gruppen, IFC-Konzeptvarianten. Produktive LP-01/F12 bleibt unverändert.",
+  "extensionType": [
+    "3dviewer"
+  ],
+  "type": "panel"
+}
