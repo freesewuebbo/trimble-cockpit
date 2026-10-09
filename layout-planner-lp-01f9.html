@@ -113,7 +113,7 @@ h2{font-size:15px;margin:0 0 9px;color:var(--blue)}.small{font-size:12px;color:v
           <button id="loadIfcBtn">Andere IFC öffnen</button>
         </div>
         <input id="loadIfcInput" type="file" accept=".ifc">
-        <div id="variantActions" style="display:none;margin-top:8px"><div class="small" id="variantInfo"></div><button id="variantDownloadBtn" style="width:100%;margin-top:6px">Geprüfte IFC herunterladen</button><button id="variantTrimbleBtn" style="width:100%;margin-top:6px" disabled>Neue IFC nach Trimble übertragen</button><div class="small" id="variantHint">Nur neue Datei; Original bleibt unverändert.</div></div>
+        <div id="variantActions" style="display:none;margin-top:8px"><div class="small" id="variantInfo"></div><button id="variantDownloadBtn" style="width:100%;margin-top:6px">Geprüfte IFC herunterladen</button><button id="variantTrimbleBtn" style="width:100%;margin-top:6px" disabled>Trimble-Upload (noch gesperrt)</button><div class="small" id="variantHint">Nur neue Datei; Original bleibt unverändert.</div></div>
         <div class="warn">LP F9: IFC-Variantenexport unterstützt IFC-Objektplatzierungen und neue IFC-Objekte durch Kopien. Änderungen werden vor der Bereitstellung geprüft. Gruppierung und Anmerkungen verbleiben als LP-Projektdaten. Die ursprüngliche IFC wird nie überschrieben.</div>
       </div>
       <div class="section">
@@ -660,8 +660,8 @@ function exportIfc(){
   latestVariant={...result,name:fname,context:trimbleContext};
   el("variantActions").style.display="block";
   el("variantInfo").textContent="IFC geprüft · "+result.report.modified+" verschoben/gedreht · "+result.report.copyCount+" Kopien · "+result.report.entities+" IFC-Entities · "+fname;
-  el("variantTrimbleBtn").disabled=!trimbleContext;
-  el("variantHint").textContent=trimbleContext?"Trimble-Upload startet nur nach deiner Bestätigung. Originaldatei wird nicht ersetzt.":"Die IFC wurde geprüft; Upload ist nur beim Start aus Trimble verfügbar.";
+  el("variantTrimbleBtn").disabled=true;
+  el("variantHint").textContent="Direkter Upload bleibt gesperrt, bis Trimble-Upload-Schnittstelle und IFC-Rundlauf geprüft sind. Die Original-IFC bleibt unverändert.";
   setStatus("Geprüfte neue IFC-Variante bereit · "+fname);
  }catch(e){
   latestVariant=null;el("variantActions").style.display="none";setStatus(e.message,true);console.error(e);
