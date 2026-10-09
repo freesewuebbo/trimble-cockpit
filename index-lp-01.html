@@ -10,18 +10,18 @@ button{min-height:36px;border:1px solid #bfcbd0;border-radius:5px;background:#ff
 </style>
 <script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script></head>
 <body><div class="p">
-<span class="tag">LP-01</span><span class="tag build">F8</span>
+<span class="tag">LP-01</span><span class="tag build">F9</span>
 <h1>Layout Planner</h1>
 <p>Geladene Trimble-IFCs werden vor der Übergabe als echte STEP-IFC validiert.</p>
 <div class="status" id="status">Verbinde mit Trimble …</div>
 <div id="models" class="models"></div>
 <button class="wide" id="refresh">Geladene Modelle aktualisieren</button>
 <button class="wide primary" id="demo">Demo-Halle öffnen ↗</button>
-<div class="small">F8 erkennt IFC-Rohtext, Base64, Blob und gzip automatisch. Erwartete Signatur: ISO-10303-21.</div>
+<div class="small">F9 erkennt IFC-Rohtext, Base64, Blob und gzip automatisch. Erwartete Signatur: ISO-10303-21.</div>
 </div>
 <script>
 let API=null;const status=document.getElementById("status"),modelsBox=document.getElementById("models");
-const LP_URL="https://freesewuebbo.github.io/trimble-cockpit/layout-planner-lp-01f8.html?build=F8";
+const LP_URL="https://freesewuebbo.github.io/trimble-cockpit/layout-planner-lp-01f9.html?build=F9";
 const enc=new TextEncoder(),dec=new TextDecoder("utf-8",{fatal:false});
 const setStatus=s=>status.textContent=s;
 const clean=s=>String(s||"").replace(/^\uFEFF/,"").trimStart();
