@@ -56,12 +56,29 @@ async function normalizeIfcContent(v){
 async function openModel(m){
  const win=window.open(LP_URL+"&source=trimble","_blank");if(!win){setStatus("Popup blockiert.");return}
  try{
-  const f=await API.viewer.getLoadedModel(m.id);if(!f||f.blob==null)throw new Error("Trimble liefert keinen Dateiinhalt.");
-  const n=await normalizeIfcContent(f.blob),b=n.bytes;
-  setStatus((f.name||m.name)+" validiert · "+n.source+" · "+b.length+" Byte");
+  let b=null,sourceName=m.name,versionId=m.versionId,sourceMode="Viewer";
+  try{
+    const file=await API.viewer.getLoadedModel(m.id);
+    if(file?.blob==null)throw new Error("Viewer liefert keine Rohdaten.");
+    const normalized=await normalizeIfcContent(file.blob);
+    b=normalized.bytes;sourceName=file.name||m.name;
+  }catch(err){
+    setStatus("Viewerformat ist keine IFC. Fordere die originale Projektdatei an …");
+    const project=await API.project.getProject();
+    const permission=await API.extension.requestPermission("accesstoken");
+    const token=getAccessTokenFromResult(permission);
+    if(!token)throw new Error("Zugriff auf Original-IFC nicht freigegeben.");
+    const original=await downloadOriginalIfc({
+      accessToken:token,projectId:project?.id||project?.projectId,
+      projectLocation:project?.location||project?.region||"",
+      sourceFileId:m.id,preferredVersionId:m.versionId,onProgress:setStatus
+    });
+    b=original.bytes;sourceName=original.name;versionId=original.versionId;sourceMode="Original-IFC";
+  }
+  setStatus(sourceName+" · "+sourceMode+" · "+b.length+" Byte");
   const buffer=b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength);
-  const payload={type:"LP_LOAD_IFC",name:f.name||m.name,modelId:m.id,versionId:m.versionId,buffer};
-  modelSources.set(m.id,{name:f.name||m.name,modelId:m.id,versionId:m.versionId});
+  const payload={type:"LP_LOAD_IFC",name:sourceName,modelId:m.id,versionId,buffer};
+  modelSources.set(m.id,{name:sourceName,modelId:m.id,versionId});
   let sent=false;const send=()=>{if(sent)return;sent=true;win.postMessage(payload,location.origin,[buffer])};
   const onMsg=e=>{if(e.origin===location.origin&&e.source===win&&e.data?.type==="LP_READY"){window.removeEventListener("message",onMsg);send()}};
   window.addEventListener("message",onMsg);setTimeout(()=>{window.removeEventListener("message",onMsg);send()},2000);
