@@ -701,7 +701,7 @@ function exportIfc(){
   if(!baseIfcText)throw new Error("Keine IFC geladen.");
   const result=buildIfcVariant({THREE,sourceText:baseIfcText,allRoots,releaseMultiPivot,basis:"identity"});
   const deviation=validateIfcRoundtrip(result.text,result.report);
-  const source=(trimbleContext?.name||modelGroup?.name||"Layout").replace(/\\.ifc$/i,"").replace(/[^\\w\\-äöüÄÖÜ]/g,"_").slice(0,75);
+  const source=(trimbleContext?.name||modelGroup?.name||"Layout").replace(/\.ifc$/i,"").replace(/[^\w\-äöüÄÖÜ]/g,"_").slice(0,75);
   const date=new Date().toISOString().slice(0,10).replace(/-/g,"");
   const fname=source+"_LP_"+date+"_"+Math.floor(Date.now()/1000)+".ifc";
   latestVariant={...result,name:fname,context:trimbleContext};
