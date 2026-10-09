@@ -5,6 +5,7 @@ on:
     paths:
       - 'layout-planner-v2.html'
       - 'lp-v2-*.js'
+      - 'lp-v2-smoke.cjs'
       - 'index-lp-v2.html'
       - 'manifest-lp-v2.json'
       - '.github/workflows/layout-planner-v2-check.yml'
@@ -37,3 +38,24 @@ jobs:
               assert 'id="'+id+'"' in html,id
           print('V2 links and controls OK')
           PY
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright browser automation
+        run: npm install --no-save playwright-core
+      - name: Verify Chrome and run live browser smoke
+        run: |
+          command -v google-chrome
+          node lp-v2-smoke.cjs
+      - name: Save screenshot when available
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v2-smoke-screens
+          path: /tmp/lp-v2-*.png
+          if-no-files-found: ignore
