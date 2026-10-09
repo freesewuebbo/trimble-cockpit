@@ -10,19 +10,20 @@ button{min-height:36px;border:1px solid #bfcbd0;border-radius:5px;background:#ff
 </style>
 <script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script></head>
 <body><div class="p">
-<span class="tag">LP-01</span><span class="tag build">F11</span>
+<span class="tag">LP-01</span><span class="tag build">F12</span>
 <h1>Layout Planner</h1>
 <p>Geladene Trimble-IFCs werden vor der Übergabe als echte STEP-IFC validiert.</p>
 <div class="status" id="status">Verbinde mit Trimble …</div>
 <div id="models" class="models"></div>
 <button class="wide" id="refresh">Geladene Modelle aktualisieren</button>
 <button class="wide primary" id="demo">Demo-Halle öffnen ↗</button>
-<div class="small">F11 erkennt IFC-Rohtext, Base64, Blob und gzip automatisch. Erwartete Signatur: ISO-10303-21.</div>
+<div class="small">F12 erkennt IFC-Rohtext, Base64, Blob und gzip automatisch. Erwartete Signatur: ISO-10303-21.</div>
 </div>
 <script type="module">
-import { uploadNewIfcVariant } from "./lp-trimble-upload-f11.js?build=F11";
+import { uploadNewIfcVariant } from "./lp-trimble-upload-f11.js?build=F12";
+import { downloadOriginalIfc } from "./lp-trimble-source-f12.js?build=F12";
 let API=null;let activeUpload=null;let modelSources=new Map();const status=document.getElementById("status"),modelsBox=document.getElementById("models");
-const LP_URL="https://freesewuebbo.github.io/trimble-cockpit/layout-planner-lp-01f11.html?build=F11";
+const LP_URL="https://freesewuebbo.github.io/trimble-cockpit/layout-planner-lp-01f12.html?build=F12";
 const enc=new TextEncoder(),dec=new TextDecoder("utf-8",{fatal:false});
 const setStatus=s=>status.textContent=s;
 const clean=s=>String(s||"").replace(/^\uFEFF/,"").trimStart();
@@ -88,19 +89,19 @@ function getAccessTokenFromResult(raw){
 }
 async function handleVariantUpload(e){
  const msg=e.data;
- if(e.origin!==location.origin||!e.source||!API||!msg||msg.type!=="LP_F11_UPLOAD_VARIANT")return;
+ if(e.origin!==location.origin||!e.source||!API||!msg||msg.type!=="LP_F12_UPLOAD_VARIANT")return;
  if(!modelSources.has(msg.sourceModelId)){
-  e.source.postMessage({type:"LP_F11_UPLOAD_RESULT",ok:false,message:"Unbekanntes Ausgangsmodell, Upload abgebrochen."},e.origin);return;
+  e.source.postMessage({type:"LP_F12_UPLOAD_RESULT",ok:false,message:"Unbekanntes Ausgangsmodell, Upload abgebrochen."},e.origin);return;
  }
- if(activeUpload){e.source.postMessage({type:"LP_F11_UPLOAD_RESULT",ok:false,message:"Upload läuft bereits."},e.origin);return}
+ if(activeUpload){e.source.postMessage({type:"LP_F12_UPLOAD_RESULT",ok:false,message:"Upload läuft bereits."},e.origin);return}
  const source=modelSources.get(msg.sourceModelId);
- if(source.name!==msg.sourceName){e.source.postMessage({type:"LP_F11_UPLOAD_RESULT",ok:false,message:"Ausgangsdatei stimmt nicht überein."},e.origin);return}
- if(!msg.buffer||!(msg.buffer instanceof ArrayBuffer)){e.source.postMessage({type:"LP_F11_UPLOAD_RESULT",ok:false,message:"Keine IFC-Daten erhalten."},e.origin);return}
+ if(source.name!==msg.sourceName){e.source.postMessage({type:"LP_F12_UPLOAD_RESULT",ok:false,message:"Ausgangsdatei stimmt nicht überein."},e.origin);return}
+ if(!msg.buffer||!(msg.buffer instanceof ArrayBuffer)){e.source.postMessage({type:"LP_F12_UPLOAD_RESULT",ok:false,message:"Keine IFC-Daten erhalten."},e.origin);return}
  activeUpload={name:msg.name};
- const reply=(ok,message,extra={})=>{try{e.source.postMessage({type:"LP_F11_UPLOAD_RESULT",ok,message,...extra},e.origin)}catch(_){}};
+ const reply=(ok,message,extra={})=>{try{e.source.postMessage({type:"LP_F12_UPLOAD_RESULT",ok,message,...extra},e.origin)}catch(_){}};
  try{
-  setStatus("F11 · Prüfe Trimble-Verbindung und Projektrechte …");
-  const [project,tokenResult]=await Promise.all([API.project.getProject(),API.getAccessToken()]);
+  setStatus("F12 · Prüfe Trimble-Verbindung und Projektrechte …");
+  const [project,tokenResult]=await Promise.all([API.project.getProject(),API.extension.requestPermission("accesstoken")]);
   const token=getAccessTokenFromResult(tokenResult);
   if(!token)throw new Error("Trimble-Zugriffstoken nicht verfügbar.");
   const id=project?.id||project?.projectId;
@@ -114,7 +115,7 @@ async function handleVariantUpload(e){
   reply(true,"Neue IFC als eigenständige Datei gespeichert.",{name:result.name,fileId:result.fileId});
  }catch(err){
   const message=String(err?.message||err);
-  setStatus("F11 Upload nicht abgeschlossen: "+message);
+  setStatus("F12 Upload nicht abgeschlossen: "+message);
   reply(false,message);
  }finally{activeUpload=null}
 }
