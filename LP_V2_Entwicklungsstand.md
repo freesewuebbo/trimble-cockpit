@@ -14,10 +14,10 @@ Stand: 09.10.2026. Getrennter Testbuild, keine Änderung an LP-01/F12.
 |---|---|---|---|
 | A01 | Mehrere IFC-Fachmodelle | Implementiert, noch nicht vollständig getestet | Test mit 4 realen Fachmodellen, Einheiten/Georeferenzierung |
 | A02 | Zeichnen | Implementiert, noch nicht vollständig getestet | 2-Klick-Quader/Wände/Böden und numerische Maße im Browser prüfen |
-| A03 | Auswahl/Gruppierung | Teilweise implementiert | Rechteckselektion, Gruppen-Unsichtbarkeit und Einzelobjektwahl aus Gruppen vertiefen |
+| A03 | Auswahl/Gruppierung | Teilweise implementiert | Benannte Gruppen, Sichtbarkeitsliste und Alt-Klick-Unterauswahl vorhanden; Rechteckselektion fehlt |
 | A04 | Verschieben/Drehen/Skalieren | Teilweise implementiert | Nichtuniformer IFC-Skalierungsexport und Gruppen-Strecken im Trimble-Rundlauf verifizieren |
 | A05 | Ausrichten/Fangen/Abstände | Teilweise implementiert | Kanten-/Mittelpunktsnapping fehlt |
-| A06 | Kopieren/Reihenbildung | Teilweise implementiert | Rechteckraster-Anordnung und Einfüge-Puffer fehlen |
+| A06 | Kopieren/Reihenbildung | Implementiert, noch nicht vollständig getestet | Lineare und rechteckige Rasterreihen per Anzahl/Abstand, Tests im Browser stehen aus |
 | A07 | Objektbibliothek | Teilweise implementiert | Lokale Standardobjekte, Modul-Speichern/-Laden vorhanden; Firmenserver fehlt |
 | A08 | Messen/Live-Maße | Teilweise implementiert | 2-Punkt-3D-Messung und Live-Zeichenmaße vorhanden; echte Abstands-/Kantenmessung erweitern |
 | A09 | Farbe | Teilweise implementiert | LP-Anzeigefarben; neuer IFC-Ergänzungsstil vorbereitet, Alt-IFC-Farbexport ungeprüft |
@@ -32,8 +32,9 @@ Stand: 09.10.2026. Getrennter Testbuild, keine Änderung an LP-01/F12.
 
 ## Testszenarien T01–T18
 
-- **Code-/Strukturprüfung vorbereitet:** eigenes GitHub Actions Workflow-Skript `.github/workflows/layout-planner-v2-check.yml` für JS-Syntax und V2-Dateiverweise; Ausführung/Ergebnis noch nicht bestätigt.
-- **Funktionale Live-Prüfung:** T01–T18 in dieser neuen Version **noch nicht durchgeführt**, daher **kein Test als bestanden ausgewiesen**.
+- **Syntax- und Strukturprüfung: bestanden** im GitHub-Actions-Lauf 37968955231 (Node.js `--check` aller V2-Module und Launcher-Datei).
+- **Browser-Smoke-Test: bestanden** im GitHub-Actions-Lauf 37968955231 (Chrome/Playwright): Demo-IFC mit 34 Objekten geladen, ein Quader gezeichnet (35 Objekte), zwei getrennte IFC-Dateien erzeugt; Ergänzungs-IFC per web-ifc erneut eingelesen. Damit sind nur diese Teilfälle von T02 und T11 getestet. Nachträgliche Erweiterungen (Raster, Gruppenanzeige) sind noch nicht erneut getestet.
+- **Übrige funktionale Abnahme:** T01, T03–T10, T12–T18 sowie die vollständigen Anforderungen von T02 und T11 sind noch nicht abgenommen.
 - **T16:** abhängig von Firmenserver/Webdienst, derzeit blockiert.
 - **T17:** Revit-Integration noch nicht überprüft, Revit-Testumgebung erforderlich.
 - **T18:** Bestandscode F12 unangetastet, realer Regressionstest nach V2-Veröffentlichung steht noch aus.
