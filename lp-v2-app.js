@@ -394,7 +394,23 @@ function renderClasses(){
   wrap.appendChild(row);
  }
 }
+function renderGroups(){
+ const target=$("groupList");if(!target)return;target.innerHTML="";
+ for(const group of groups.values()){
+  const row=document.createElement("div");row.className="item";
+  const name=document.createElement("span");name.className="txt";name.textContent=group.name+" ("+group.items.size+")";name.title=group.id;
+  const eye=button(group.hidden?"○":"◉",()=>{
+   group.hidden=!group.hidden;
+   if(group.hidden){group.beforeVisibility={};for(const id of group.items){const r=objects.get(id);if(r){group.beforeVisibility[id]=r.visible;r.visible=false}}}
+   else{for(const id of group.items){const r=objects.get(id);if(r)r.visible=!r.userData.deleted&&(group.beforeVisibility?.[id]!==false)}}
+   clearSelection();capture("Gruppe sichtbar");renderGroups();
+  },"tiny");
+  const pick=button("✓",()=>select([...group.items]),"tiny");
+  row.append(name,eye,pick);target.appendChild(row);
+ }
+}
 function renderObjects(){
+ renderGroups();
  const term=$("objectSearch").value.trim().toLowerCase();const panel=$("objectList");panel.innerHTML="";
  let shown=0;for(const r of objects.values()){
   if(term&&!r.userData.name.toLowerCase().includes(term))continue;if(shown++>120)break;
