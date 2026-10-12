@@ -472,12 +472,12 @@ async function loadProjectFile(e){
   restoreView(data);capture("Projekt geöffnet");setStatus("V2-Projekt wiederhergestellt");
  }catch(err){setStatus("Projekt konnte nicht geladen werden: "+err.message,true)}finally{e.target.value=""}
 }
-function reviewExports(){setStatus("Prüfe IFC-Konzepte …");currentExports=[];const notes=[];
+function reviewExports(){setStatus("Prüfe IFC-Konzepte …");currentExports=[];const notes=[];let blocked=false;
  const stand="V002_"+new Date().toISOString().replace(/[-:]/g,"").replace("T","_").slice(0,15);
  for(const m of models.values()){
   const roots=new Map(modelEntries(m.key).filter(r=>!r.userData.deleted).map(r=>[r.userData.lpId,r]));
   const deleted=modelEntries(m.key).filter(r=>r.userData.deleted);
-  if(deleted.length){notes.push(m.name+": "+deleted.length+" Löschungen nicht IFC-konform exportiert; Datei gesperrt.");continue}
+  if(deleted.length){blocked=true;notes.push(m.name+": "+deleted.length+" Löschungen nicht IFC-konform exportiert; Gesamt-Upload gesperrt.");continue}
   if(!roots.size)continue;
   try{
    const result=buildIfcVariant({THREE,sourceText:m.source,allRoots:roots,releaseMultiPivot:releasePivot,basis:"identity"});
@@ -490,7 +490,7 @@ function reviewExports(){setStatus("Prüfe IFC-Konzepte …");currentExports=[];
     const name=safeName(m.name.replace(/\.ifc$/i,""))+"_LP_"+stand+".ifc";
     currentExports.push({name,text:m.source,source:m});notes.push(name+" · unverändert übernommen");
    }
-   else notes.push(m.name+": "+err.message);
+   else {blocked=true;notes.push(m.name+": "+err.message+" · Gesamt-Upload gesperrt");}
   }
  }
  const additions=[...objects.values()].filter(r=>r.userData.kind==="draw"&&!r.userData.deleted);
@@ -501,14 +501,15 @@ function reviewExports(){setStatus("Prüfe IFC-Konzepte …");currentExports=[];
    if(temp===-1)throw Error("Web-ifc Rückimport fehlgeschlagen");ifcApi.CloseModel(temp);
    currentExports.push({name:"Layout-Ergaenzungen_LP_"+stand+".ifc",text:result,source:null});
    notes.push(additions.length+" neue Objekte in Ergänzungs-IFC");
-  }catch(e){notes.push("Ergänzungs-IFC FEHLER: "+e.message)}
+  }catch(e){blocked=true;notes.push("Ergänzungs-IFC FEHLER: "+e.message+" · Gesamt-Upload gesperrt")}
  }
  $("exportResult").innerHTML="";
  for(const t of currentExports){
   const b=button("↓ "+t.name,()=>download(t.name,t.text,"application/x-step"));b.style.width="100%";b.style.marginBottom="5px";$("exportResult").appendChild(b)
  }
  const p=document.createElement("p");p.textContent=notes.join(" | ")||"Keine Änderungen zum Export";
- $("exportResult").appendChild(p);$("sendTrimble").disabled=!trimbleConnected||!currentExports.length;
+ $("exportResult").appendChild(p);$("sendTrimble").disabled=blocked||!trimbleConnected||!currentExports.length;
+ if(blocked){const warning=document.createElement("p");warning.style.color="#b34136";warning.textContent="Upload gesperrt: Mindestens ein Fachmodell oder eine Ergänzung wurde nicht vollständig IFC-konform exportiert. Keine Teilübertragung."; $("exportResult").prepend(warning)}
  setStatus(currentExports.length+" Konzept-IFCs geprüft. Ungestützte Funktionen siehe Status.");
 }
 function trimbleImport(event){
