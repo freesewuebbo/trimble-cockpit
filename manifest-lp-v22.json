@@ -1,0 +1,9 @@
+{
+  "url": "https://freesewuebbo.github.io/trimble-cockpit/index-lp-v22.html?build=V2.2",
+  "title": "LEANNOVA Layout Planner V2.2 (Test)",
+  "description": "Separate Testversion für IFC-konformes Löschen. Die bestehenden V2.1 und F12 bleiben unverändert.",
+  "extensionType": [
+    "3dviewer"
+  ],
+  "type": "panel"
+}
