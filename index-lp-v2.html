@@ -10,7 +10,7 @@ button{min-height:36px;border:1px solid #bfcbd0;border-radius:5px;background:#ff
 </style>
 <script src="https://components.connect.trimble.com/trimble-connect-workspace-api/index.js"></script></head>
 <body><div class="p">
-<span class="tag">LP-V2</span><span class="tag build">VERSION 2 · TEST</span>
+<span class="tag">LP-V2</span><span class="tag build">VERSION 2.1 · TEST</span>
 <h1>Layout Planner</h1>
 <p>Mehrere IFC-Fachmodelle gemeinsam laden – Originaldateien bleiben unverändert.</p>
 <div class="status" id="status">Verbinde mit Trimble …</div>
@@ -23,7 +23,7 @@ button{min-height:36px;border:1px solid #bfcbd0;border-radius:5px;background:#ff
 import { uploadNewIfcVariant } from "./lp-v2-trimble-upload.js?build=V2";
 import { downloadOriginalIfc } from "./lp-trimble-source-f12.js?build=V2";
 let API=null;let activeUpload=null;let modelSources=new Map();let modelList=[];let selectedModelIds=new Set();let activePlanner=null;let pendingPayload=null;const status=document.getElementById("status"),modelsBox=document.getElementById("models");
-const LP_URL="https://freesewuebbo.github.io/trimble-cockpit/layout-planner-v2.html?build=V2";
+const LP_URL="https://freesewuebbo.github.io/trimble-cockpit/layout-planner-v2.html?build=V2.1";
 const enc=new TextEncoder(),dec=new TextDecoder("utf-8",{fatal:false});
 const setStatus=s=>status.textContent=s;
 const clean=s=>String(s||"").replace(/^\uFEFF/,"").trimStart();
@@ -171,12 +171,12 @@ window.addEventListener("message",async e=>{
    });
    results.push(result);
   }
-  const msg=results.length+" neue IFC-Datei(en) im Projektordner Layout-Planner gespeichert.";
-  setStatus(msg);e.source.postMessage({type:"LP_V2_EXPORT_STATUS",ok:true,message:msg,files:results},e.origin);
+  const successMessage=results.length+" neue IFC-Datei(en) im Projektordner Layout-Planner gespeichert.";
+  setStatus(successMessage);e.source.postMessage({type:"LP_V2_EXPORT_STATUS",ok:true,message:successMessage,files:results},e.origin);
  }catch(err){
-  const msg="Upload teilweise/noch nicht abgeschlossen: "+err.message+
+  const errorMessage="Upload teilweise/noch nicht abgeschlossen: "+err.message+
    (results.length?" ("+results.length+" Dateien bereits erfolgreich angelegt. Nicht erneut hochladen.)":"");
-  setStatus(msg);e.source.postMessage({type:"LP_V2_EXPORT_STATUS",ok:false,message:msg,files:results},e.origin);
+  setStatus(errorMessage);e.source.postMessage({type:"LP_V2_EXPORT_STATUS",ok:false,message:errorMessage,files:results},e.origin);
  }finally{activeUpload=null}
 });
 
