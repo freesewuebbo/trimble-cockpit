@@ -1,0 +1,38 @@
+name: LP V2.2 deletion regression
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'layout-planner-v22.html'
+      - 'lp-v22-step.js'
+      - 'lp-v22-app.js'
+      - 'index-lp-v22.html'
+      - 'manifest-lp-v22.json'
+      - 'lp-v22-smoke.cjs'
+      - '.github/workflows/lp-v22-check.yml'
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check all V2.2 modules
+        run: |
+          node --check lp-v22-step.js
+          node --check lp-v22-app.js
+          node --check lp-v22-smoke.cjs
+      - name: Install browser automation
+        run: npm install --no-save playwright-core
+      - name: Delete IFC object and re-import exported IFC
+        run: |
+          command -v google-chrome
+          node lp-v22-smoke.cjs
+      - name: Save diagnostic screenshot on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lp-v22-deletion-fail
+          path: /tmp/lp-v22-failure.png
+          if-no-files-found: ignore
